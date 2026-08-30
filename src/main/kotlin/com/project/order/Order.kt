@@ -1,6 +1,7 @@
 package com.project.order
 
 import jakarta.persistence.*
+import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -16,6 +17,10 @@ class Order constructor() {
     @Enumerated(EnumType.STRING)
     var status: OrderStatus? =null
 
+    @Column(name = "order_number", nullable = false, unique = true)
+    var orderNumber: String?=null
+
+    @Column(name = "created_at")
     var createAt: Instant? =null
 
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
@@ -26,5 +31,6 @@ class Order constructor() {
         this.status = OrderStatus.CREATED
         this.createAt = Clock.System.now()
         this.items.addAll(items)
+        this.orderNumber = UUID.randomUUID().toString()
     }
 }

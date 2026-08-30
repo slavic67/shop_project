@@ -3,18 +3,25 @@ spring:
     name: project
 
   datasource:
-    url: jdbc:h2:mem:orderdb
-    username: sa
-    password:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:order}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: true
 
-  h2:
-    console:
-      enabled: true
+  liquibase:
+    user: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    enabled: true
+    change-log: classpath:/db/changelog/changelog_master.yaml
 
 server:
   port: 8081
+
+logging:
+  level:
+    org.hibernate.sql: DEBUG

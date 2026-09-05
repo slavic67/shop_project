@@ -1,13 +1,13 @@
-CREATE TABLE orders(
+CREATE TABLE if not exists orders(
                        id BIGSERIAL PRIMARY KEY,
                        status VARCHAR(50) NOT NULL,
-                       creat_at TIMESTAMP WITH TIME ZONE NOT NULL
+                       created_at TIMESTAMP WITH TIME ZONE NOT NULL
 
                            CONSTRAINT check_status CHECK ( status IN ('CREATED', 'PAID', 'CANCELLED'))
 
 );
 
-CREATE TABLE order_items (
+CREATE TABLE if not exists order_items (
                              id BIGSERIAL PRIMARY KEY,
                              order_id BIGINT,
                              product_id BIGINT not null,
@@ -22,5 +22,5 @@ CREATE TABLE order_items (
 
 );
 
-CREATE INDEX idx_order_items_id ON order_items(order_id);
-CREATE INDEX idx_order_status ON orders(status);
+CREATE INDEX if not exists idx_order_items_id ON order_items(order_id);
+CREATE INDEX if not exists idx_order_status ON orders(status);

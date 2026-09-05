@@ -9,7 +9,7 @@ import java.math.BigDecimal
 data class OrderItemRequest(
 
     @field:NotNull(message = "productId обязателен")
-    val productId: Long,
+    var productId: Long,
 
     @field:NotBlank(message = "productName обязателен")
     val productName: String,
@@ -19,5 +19,5 @@ data class OrderItemRequest(
 
     @field:NotNull(message = "price обязателен")
     @field:DecimalMin(value = "0.01", message = "price не может быть меньше 0")
-    val price: BigDecimal
+    var price: BigDecimal
 )

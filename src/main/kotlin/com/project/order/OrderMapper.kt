@@ -8,7 +8,7 @@ class OrderMapper {
 
     fun from(item: OrderItem): OrderItemResponse =
         OrderItemResponse(
-            item.id,
+            item.productId,
             item.productName,
             item.quantity,
             item.price,

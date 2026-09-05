@@ -4,6 +4,7 @@ plugins {
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.jetbrains.kotlin.plugin.jpa' version '2.3.21'
+	id 'nu.studer.jooq' version '10.2.1'   // плагин для генерациии jooq кода
 }
 
 group = 'com'
@@ -22,16 +23,21 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-jooq'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'tools.jackson.module:jackson-module-kotlin'
 	implementation 'org.liquibase:liquibase-core'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 	compileOnly 'org.projectlombok:lombok'
+	// Драйвер для генерации
+	jooqGenerator 'org.postgresql:postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-liquibase-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-jooq-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
@@ -51,6 +57,52 @@ allOpen {
 	annotation 'jakarta.persistence.MappedSuperclass'
 	annotation 'jakarta.persistence.Embeddable'
 }
+
+jooq {
+	// Чтобы версия jOOQ совпадала с той, что управляет Spring Boot
+	version = ''                          // пустая строка = брать из Spring Boot
+	edition = nu.studer.gradle.jooq.JooqEdition.OSS
+
+	configurations {
+		main {
+			generationTool {
+				logging = org.jooq.meta.jaxb.Logging.WARN
+
+				jdbc {
+					driver = 'org.postgresql.Driver'
+					url = 'jdbc:postgresql://localhost:5432/order'
+					user = 'postgres'
+					password = 'postgres'
+				}
+
+				generator {
+					name = 'org.jooq.codegen.DefaultGenerator'
+
+					database {
+						name = 'org.jooq.meta.postgres.PostgresDatabase'
+						inputSchema = 'public'
+						// includes = '.*'
+						// excludes = 'flyway_schema_history'
+					}
+
+
+
+					target {
+						packageName = 'com.core.jooq'   // куда генерировать
+						directory = 'build/generated-src/jooq/main'  // по умолчанию
+					}
+
+					generate {
+						daos = true
+						pojos = true
+						javaTimeTypes = true
+					}
+				}
+			}
+		}
+	}
+}
+
 
 tasks.named('test') {
 	useJUnitPlatform()

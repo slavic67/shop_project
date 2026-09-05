@@ -1,5 +1,6 @@
-package com.project.order
+package com.project.order.exception
 
+import com.project.order.ErrorDto
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -19,5 +20,11 @@ class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(
             ErrorDto(ex.statusCode.value(), "Validation Failed", errors)
         )
+    }
+
+    @ExceptionHandler(NotFoundOrderException::class)
+    fun handleException(ex: NotFoundOrderException): ResponseEntity<ErrorDto> {
+        val error: ErrorDto = ErrorDto(404, "Order Not Found", ex.message?:"");
+        return  ResponseEntity.badRequest().body(error);
     }
 }

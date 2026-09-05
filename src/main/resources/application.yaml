@@ -12,6 +12,15 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        generate_statistics: true
 
   liquibase:
     user: ${POSTGRES_USER:postgres}
@@ -19,9 +28,14 @@ spring:
     enabled: true
     change-log: classpath:/db/changelog/changelog_master.yaml
 
+  jooq:
+    sql-dialect: postgres
+
 server:
   port: 8081
 
 logging:
   level:
     org.hibernate.sql: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.jdbc.core.JdbcTemplate: DEBUG

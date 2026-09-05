@@ -1,9 +1,9 @@
 package com.project.order
 
 import jakarta.persistence.*
+import java.time.Instant
 import java.util.UUID
 import kotlin.time.Clock
-import kotlin.time.Instant
 
 
 @Entity
@@ -25,11 +25,11 @@ class Order constructor() {
 
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
     @JoinColumn(name = "order_id")
-    val items: MutableList<OrderItem> = mutableListOf()
+    var items: MutableList<OrderItem> = mutableListOf()
 
     constructor(items: List<OrderItem>) : this() {
         this.status = OrderStatus.CREATED
-        this.createAt = Clock.System.now()
+        this.createAt = Instant.now()
         this.items.addAll(items)
         this.orderNumber = UUID.randomUUID().toString()
     }

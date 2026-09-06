@@ -1,6 +1,6 @@
 package com.project.order.repository
 
-import com.project.order.Order
+import com.project.order.domain.Order
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.*

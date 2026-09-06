@@ -1,9 +1,7 @@
-package com.project.order
+package com.project.order.domain
 
 import jakarta.persistence.*
-import lombok.AccessLevel
 import lombok.Getter
-import lombok.NoArgsConstructor
 import java.math.BigDecimal
 
 @Entity
@@ -18,6 +16,10 @@ class OrderItem() {
     var productName: String?=null
     var quantity: Int=0
     var price: BigDecimal?=null
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    var order: Order? = null;
 
     constructor(productId: Long?,
                 productName: String?,

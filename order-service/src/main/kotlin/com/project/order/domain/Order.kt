@@ -1,9 +1,9 @@
-package com.project.order
+package com.project.order.domain
 
+import com.project.order.OrderStatus
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
-import kotlin.time.Clock
 
 
 @Entity
@@ -32,5 +32,7 @@ class Order constructor() {
         this.createAt = Instant.now()
         this.items.addAll(items)
         this.orderNumber = UUID.randomUUID().toString()
+
+        items.forEach {item -> item.order=this}
     }
 }

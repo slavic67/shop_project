@@ -1,6 +1,6 @@
 package com.project.order.exception
 
-import com.project.order.ErrorDto
+import com.project.order.domain.dto.ErrorDto
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler

@@ -1,4 +1,4 @@
-package com.project.order
+package com.project.order.domain.dto
 
 import com.fasterxml.jackson.annotation.JsonInclude
 

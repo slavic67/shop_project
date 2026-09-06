@@ -1,5 +1,7 @@
 package com.project.order
 
+import com.project.order.domain.Order
+import com.project.order.domain.OrderItem
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
 

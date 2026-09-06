@@ -7,10 +7,13 @@ spring:
   application:
     name: project
 
+  profiles:
+    active: local
+
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:order}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -23,8 +26,8 @@ spring:
         format_sql: true
 
   liquibase:
-    user: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     enabled: true
     change-log: classpath:/db/changelog/changelog_master.yaml
 
@@ -35,6 +38,19 @@ spring:
 
 
 management:
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        descriptions: true
+
+  metrics:
+    distribution:
+      percentiles-histogram:
+        all: true
+      slo:
+        "[http.server.requests]": 50ms,100ms,200ms,500ms,1s,2s
+
   info:
     env:
       enabled: true

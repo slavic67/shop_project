@@ -1,0 +1,105 @@
+version: '3.8'
+
+# =============================================================================
+# Запуск: docker-compose --env-file .env up -d
+# Остановка: docker-compose down -v (удалит volumes)
+#
+# Компоненты:
+#   postgres     - база данных (хранит заказы)
+#   order-service - само приложение Spring Boot
+#   prometheus   - сбор метрик (хранит 15 дней)
+#   grafana      - визуализация (дашборды)
+# =============================================================================
+
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: order_db
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - order-service-network
+    restart: unless-stopped # Автоматический перезапуск при падении
+    command:
+      # Тюнинг PostgreSQL для лучшей производительности
+      - "postgres"
+      - "-c"
+      - "max_connections=100"      # Максимум подключений (не даём упасть от перегрузки)
+      - "-c"
+      - "shared_buffers=256MB"      # Кэш в памяти (ускоряет запросы)
+    healthcheck:
+      # Проверка, что БД действительно готова принимать подключения
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s   # Проверять каждые 10 секунд
+      timeout: 5s     # Ждать ответа не больше 5 секунд
+      retries: 5      # 5 неудач = контейнер нездоров
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - сбор метрик
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    volumes:
+      # Конфигурация Prometheus (скажем, куда ходить за метриками)
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Данные метрик (чтобы не терять историю при перезапуске)
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'  # Храним метрики 15 дней (production standard)
+    ports:
+      - '9090:9090'  # UI Prometheus (только для отладки)
+    restart: unless-stopped
+    networks:
+      - order-service-network
+
+  # ---------------------------------------------------------------------------
+  # Grafana - визуализация дашбордов
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana  # Сохраняем дашборды и настройки
+    environment:
+      # Учётка для первого входа (обязательно поменять в production!)
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      # Дополнительные плагины (например, для круговых диаграмм)
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    ports:
+      - '3000:3000'  # UI Grafana
+    depends_on:
+      - prometheus  # Логически зависит, но технически может работать без него
+    restart: unless-stopped
+    networks:
+      - order-service-network
+
+
+volumes:
+  postgres_data:
+    name: order_postgres_data
+  prometheus_data:
+    name: order_prometheus_data
+  grafana_data:
+    name: order_grafana_data
+
+
+# -------------------------------------------------------------------------------
+# Изолированная сеть для сервисов
+# -------------------------------------------------------------------------------
+networks:
+  order-service-network:
+    name: order-service-network
+    external: true

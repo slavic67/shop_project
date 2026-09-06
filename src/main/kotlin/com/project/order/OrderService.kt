@@ -39,6 +39,7 @@ class OrderService(
             .toList()
 
         val order : Order= Order(items)
+        orderRepository.save(order)
         return orderMapper.from(order)
     }
 

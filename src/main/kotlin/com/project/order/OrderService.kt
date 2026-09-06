@@ -1,6 +1,7 @@
 package com.project.order
 
 import com.project.order.exception.NotFoundOrderException
+import com.project.order.metrics.annotation.BusinessMetric
 import com.project.order.repository.OrderRepository
 import lombok.RequiredArgsConstructor
 import lombok.extern.slf4j.Slf4j
@@ -20,6 +21,10 @@ class OrderService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
+    @BusinessMetric(
+        value = "orders.created",
+        tags = ["operation=create", "type=write"]
+    )
     fun createOrder(request: CreateOrderRequest): OrderResponse? {
 
         val items :List<OrderItem> = request.items.stream()
@@ -38,6 +43,10 @@ class OrderService(
     }
 
     @Transactional(readOnly = true)
+    @BusinessMetric(
+        value = "orders.retrieved",
+        tags = ["operation=get", "type=read"]
+    )
     fun getOrderWithItems(id: Long) : OrderResponse {
 
 

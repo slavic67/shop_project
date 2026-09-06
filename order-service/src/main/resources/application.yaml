@@ -5,10 +5,10 @@ server:
 
 spring:
   application:
-    name: project
+    name: order-service
 
   profiles:
-    active: local
+    active: default
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -81,3 +81,6 @@ logging:
   level:
     org.hibernate.sql: DEBUG
     root: info
+
+url:
+  notification-service: ${NOTIFICATION_SERVICE_URL}

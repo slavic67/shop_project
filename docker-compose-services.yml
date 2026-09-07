@@ -86,6 +86,25 @@ services:
     networks:
       - order-service-network
 
+  # ---------------------------------------------------------------------------
+  # Jaeger - распределённая трассировка
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+      # Храним трассы в памяти (для демо), в production нужен persistent storage
+      SPAN_STORAGE_TYPE: memory
+    restart: unless-stopped
+    networks:
+      - order-service-network
+
+
 
 volumes:
   postgres_data:
@@ -94,6 +113,8 @@ volumes:
     name: order_prometheus_data
   grafana_data:
     name: order_grafana_data
+  jaeger_data:
+    name: order_jaeger_data
 
 
 # -------------------------------------------------------------------------------

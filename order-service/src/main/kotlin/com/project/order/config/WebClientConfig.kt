@@ -12,10 +12,6 @@ class WebClientConfig {
     @Value("\${url.notification-service}")
     private val url: String? = null
 
-    @Bean
-    fun webClientBuilder(): WebClient.Builder {
-        return WebClient.builder()
-    }
 
     @Bean
     fun notificationWebClient(builder: WebClient.Builder): WebClient {

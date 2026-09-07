@@ -38,6 +38,25 @@ spring:
 
 
 management:
+  observations:
+    annotations:
+      enabled: true
+
+  tracing:
+    sampling:
+      probability: 1.0
+
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+  opentelemetry: # в Boot 4 предпочтительнее этот путь
+    tracing:
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
+
   prometheus:
     metrics:
       export:

@@ -7,13 +7,25 @@ spring:
     name: notification-service
 
 management:
+  observations:
+    annotations:
+      enabled: true
+
   tracing:
-    enabled: true
     sampling:
-      probability: 1.0   # в демо берём 100%, в production меньше (0.1, 0.01)
+      probability: 1.0
+
   otlp:
+    metrics:
+      export:
+        enabled: false
+
+  opentelemetry:
     tracing:
-      endpoint: http://jaeger:4318/v1/traces
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
+
 
 logging:
   pattern:

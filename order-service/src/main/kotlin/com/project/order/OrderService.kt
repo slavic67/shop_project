@@ -66,6 +66,7 @@ class OrderService(
         value = "orders.retrieved",
         tags = ["operation=get", "type=read"]
     )
+    @Observed(name="order.get", contextualName = "get-order")
     fun getOrderWithItems(id: Long) : OrderResponse {
 
 

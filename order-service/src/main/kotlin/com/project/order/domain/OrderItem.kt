@@ -15,7 +15,7 @@ class OrderItem() {
     var productId: Long?=null
     var productName: String?=null
     var quantity: Int=0
-    var price: BigDecimal?=null
+    var price: BigDecimal=BigDecimal.ZERO
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
@@ -24,7 +24,7 @@ class OrderItem() {
     constructor(productId: Long?,
                 productName: String?,
                 quantity: Int,
-                price: BigDecimal?
+                price: BigDecimal
     ) : this() {
         this.productId = productId
         this.productName = productName

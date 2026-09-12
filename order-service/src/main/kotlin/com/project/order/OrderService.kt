@@ -11,9 +11,11 @@ import io.opentelemetry.api.trace.Span
 import lombok.RequiredArgsConstructor
 import lombok.extern.slf4j.Slf4j
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Random
 
 
 @Slf4j
@@ -35,6 +37,20 @@ class OrderService(
     @Observed(name="order.creation", contextualName = "create-order")
     fun createOrder(request: CreateOrderRequest): OrderResponse? {
 
+        //TODO имитация проблемы, потом удалить
+        val random: Int = Random().nextInt(100)
+
+        log.info("Выпало число: $random")
+
+        if (random < 30) {
+            log.error("Возникли проблемы с сохранением заказа")
+            throw RuntimeException("Ошибка соединения с бд")
+        }
+
+        if (random > 70) {
+            Thread.sleep(200)
+        }
+
         val items :List<OrderItem> = request.items.stream()
             .map {
                 OrderItem(
@@ -47,18 +63,32 @@ class OrderService(
             .toList()
 
         val order : Order = Order(items)
-        orderRepository.saveAndFlush(order)
+        val savedOrder = orderRepository.saveAndFlush(order)
 
-        log.info("Отправляем инфо о заказе, id: ${order.id}")
+        try {
+            MDC.put("order_id", savedOrder.id.toString());
+            MDC.put("total_amount", savedOrder.calculateTotalAmount().toString());
+            MDC.put("order_status", savedOrder.status?.name);
 
-        eventPublisher.publishEvent(OrderCreatedEvent.of(order.id!!))
+            log.info("Отправляем инфо о заказе, id: ${order.id}")
 
-        log.debug("Заказ успешно сохранен")
+            eventPublisher.publishEvent(OrderCreatedEvent.of(
+                savedOrder.id!!,
+                MDC.getCopyOfContextMap() )
+            )
 
-        // Теги добавятся в order.creation span
-        Span.current().setAttribute("orderId", order.id!!)
+            log.debug("Заказ успешно сохранен")
 
-        return orderMapper.from(order)
+            // Теги добавятся в order.creation span
+            Span.current().setAttribute("orderId", order.id!!)
+
+            return orderMapper.from(order)
+        } finally {
+            // Очищаем только свои поля, trace_id остаётся чтобы не засорять память
+            MDC.remove("order_id");
+            MDC.remove("total_amount");
+            MDC.remove("order_status");
+        }
     }
 
     @Transactional(readOnly = true)

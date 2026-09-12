@@ -23,7 +23,7 @@ class NotificationListener(
         log.debug("Получено событие о создании заказа: {}, дата: {}", event.orderId, event.timestamp);
 
         try {
-            notificationClient.notifyOrderCreated(event.orderId);
+            notificationClient.notifyOrderCreated(event);
             log.debug("Уведомление отправлено для заказа: {}", event.orderId);
         } catch (e: Exception) {
             log.error("Ошибка при отправке уведомления для заказа: {}", event.orderId, e);

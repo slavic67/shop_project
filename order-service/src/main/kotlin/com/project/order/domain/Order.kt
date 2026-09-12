@@ -2,6 +2,7 @@ package com.project.order.domain
 
 import com.project.order.OrderStatus
 import jakarta.persistence.*
+import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -34,5 +35,16 @@ class Order constructor() {
         this.orderNumber = UUID.randomUUID().toString()
 
         items.forEach {item -> item.order=this}
+    }
+
+    //метод расчета суммы заказа
+    fun calculateTotalAmount() : BigDecimal {
+        if (this.items.isEmpty()) {
+            return BigDecimal.ZERO
+        }
+
+        return items.stream().map { item ->
+            item.price.multiply(BigDecimal.valueOf(item.quantity.toLong()))
+        }.reduce(BigDecimal.ZERO, BigDecimal::add)
     }
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <!-- Spring Boot свойства -->
-    <springProperty scope="context" name="service" source="spring.application.name" defaultValue="order-service"/>
+    <springProperty scope="context" name="service" source="spring.application.name" defaultValue="notification-service"/>
     <springProperty scope="context" name="environment" source="ENVIRONMENT" defaultValue="development"/>
 
     <!-- ============================================= -->

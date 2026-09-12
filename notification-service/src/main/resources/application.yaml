@@ -7,7 +7,7 @@ spring:
     name: notification-service
 
   profiles:
-    active: elk
+    active: ${NOTIFICATION_SERVICE_PROFILES:default}
 
 management:
   observations:
@@ -18,7 +18,17 @@ management:
     sampling:
       probability: 1.0
     propagation:
-      type: w3c
+      type: w3c   # W3C Trace Context, traceparent: содержит Trace ID, Span ID и флаги трассировки
+
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - metrics
+          - info
+          - prometheus
+          - loggers
 
   otlp:
     metrics:
@@ -31,3 +41,32 @@ management:
         otlp:
           endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
+#logging:
+#  # Блок настройки структурированного (JSON) логирования
+#  structured:
+#    # Формат вывода логов
+#    format:
+#      # console – указывает, что формат применяется к выводу в консоль (stdout)
+#      console: logstash  # Возможные значения: ecs, logstash, gelf
+#        # - ecs      : Elastic Common Schema – современный стандарт Elastic,
+#        #               поля называются по ECS-спецификации (trace.id, service.name и т.д.)
+#        #               Лучшая совместимость с Kibana и Elasticsearch.
+#        # - logstash : классический Logstash JSON (поля @timestamp, @version, message, ...)
+#        #               Аналогичен тому, что выдаёт logstash-logback-encoder.
+#        # - gelf     : Graylog Extended Log Format – для систем на Graylog.
+#        # Можно также указать отдельно для console и file:
+#        #   console: ecs
+#      #   file: logstash  # в файл пишем в другом формате
+#
+#    # Настройки для JSON-формата (применимы, если выбран один из JSON-форматов)
+#    json:
+#      # Настройка отображения стектрейсов (исключений) в JSON
+#      stacktrace:
+#        # Максимальная длина всего стектрейса в символах (включая сообщения и фреймы).
+#        # Если стектрейс длиннее – он будет обрезан.
+#        # Полезно для ограничения размера лога.
+#        max-length: 2048   # Можно указать 1024, 4096, 65536 и т.д.
+#
+#        # Максимальная глубина вложенности исключений (сколько cause-цепочек показывать).
+#        # Предотвращает бесконечные рекурсии и слишком глубокие стеки.
+#        max-throwable-depth: 30   # Обычно 20-30 достаточно для большинства приложений.

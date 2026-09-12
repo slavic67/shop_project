@@ -27,6 +27,7 @@ services:
     networks:
       - order-service-network
     environment:
+      ORDER_SERVICE_PROFILES: elk
       # -----------------------------------------------------------------------
       # Подключение к БД (runtime)
       # -----------------------------------------------------------------------
@@ -89,6 +90,8 @@ services:
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-8082}:8082"
     environment:
+      NOTIFICATION_SERVICE_PROFILES: elk
+
       # Сервер
       SERVER_PORT: 8082
 

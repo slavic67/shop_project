@@ -1,14 +1,14 @@
 version: '3.8'
 
 # =============================================================================
-# Запуск: docker-compose --env-file .env up -d
-# Остановка: docker-compose down -v (удалит volumes)
+# Запуск: docker-compose -f docker-compose-services.yml --env-file .dev.env up -d
+# Остановка: docker-compose -f docker-compose-services.yml down
 #
 # Компоненты:
 #   postgres     - база данных (хранит заказы)
-#   order-service - само приложение Spring Boot
 #   prometheus   - сбор метрик (хранит 15 дней)
 #   grafana      - визуализация (дашборды)
+#   jaeger       - трассировка запросов
 # =============================================================================
 
 services:

@@ -1,6 +1,6 @@
 
 server:
-  port: 8081
+  port: ${ORDER_SERVICE_PORT:8081}
 
 
 spring:
@@ -55,7 +55,7 @@ management:
     tracing:
       export:
         otlp:
-          endpoint: http://localhost:4318/v1/traces
+          endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
   prometheus:
     metrics:

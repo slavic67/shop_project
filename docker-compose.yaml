@@ -1,14 +1,12 @@
 version: '3.8'
 
 # =============================================================================
-# Запуск: docker-compose --env-file .env up -d
-# Остановка: docker-compose down -v (удалит volumes)
+# Запуск: docker-compose -f docker-compose.yaml --env-file .dev.env up -d --build
+# Остановка: docker-compose down
 #
 # Компоненты:
-#   postgres     - база данных (хранит заказы)
-#   order-service - само приложение Spring Boot
-#   prometheus   - сбор метрик (хранит 15 дней)
-#   grafana      - визуализация (дашборды)
+#   notification-service - сервис уведомлений
+#   order-service - сервис заказов
 # =============================================================================
 
 services:
@@ -17,13 +15,13 @@ services:
   # Spring Boot приложение
   # ---------------------------------------------------------------------------
   order-service:
-    build: .
+    build:
 #      context: .                    # Текущая директория
-#      dockerfile: Dockerfile
+      dockerfile: order-service/Dockerfile
 #      args:
 #        # Аргументы сборки (только метаинформация)
 #        APP_VERSION: ${APP_VERSION}  # Версия приложения для меток в образе
-    container_name: orderhub_app
+    container_name: order_service
     ports:
       - "7771:8081"           # Проброс порта наружу
     networks:
@@ -34,7 +32,7 @@ services:
       # -----------------------------------------------------------------------
       SPRING_DATASOURCE_URL: jdbc:postgresql://order_db:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}  # Секрет!
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
 
       # -----------------------------------------------------------------------
       # Для миграций и прямых запросов (если нужно внутри приложения)
@@ -49,6 +47,74 @@ services:
       # JPA настройки
       # -----------------------------------------------------------------------
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}  # validate в production
+
+      # -----------------------------------------------------------------------
+      # Метрики и мониторинг (для Prometheus)
+      # -----------------------------------------------------------------------
+      MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "true"  # Включаем экспорт в Prometheus
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus,metrics,loggers
+
+      # -----------------------------------------------------------------------
+      # Логирование (опционально, для отладки)
+      # -----------------------------------------------------------------------
+      LOGGING_LEVEL_COM_ORDERHUB: DEBUG  # Детальные логи нашего кода
+
+      # Трассировка OpenTelemetry
+      MANAGEMENT_TRACING_ENABLED: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+
+      # Логирование с traceId
+      LOGGING_PATTERN_CONSOLE: "%d{yyyy-MM-dd HH:mm:ss} - %X{traceId} - %msg%n"
+      LOGGING_LEVEL_OLEBORN_ORDERHUB: DEBUG
+
+      NOTIFICATION_SERVICE_URL: http://notification-service:8082
+    restart: unless-stopped
+    healthcheck:
+      # Проверка, что Spring Boot жив и отвечает
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s  # Даём время на запуск (первые 40с не проверяем)
+
+
+  # ---------------------------------------------------------------------------
+  # Notification Service - сервис уведомлений
+  # ---------------------------------------------------------------------------
+  notification-service:
+    build:
+      dockerfile: notification-service/Dockerfile
+    container_name: notification_service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8082}:8082"
+    environment:
+      # Сервер
+      SERVER_PORT: 8082
+
+      # Метрики для Prometheus (опционально)
+      MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "true"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus,metrics
+
+      # Трассировка OpenTelemetry
+      MANAGEMENT_TRACING_ENABLED: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+
+      # Логирование с traceId
+      LOGGING_PATTERN_CONSOLE: "%d{yyyy-MM-dd HH:mm:ss} - %X{traceId} - %msg%n"
+      LOGGING_LEVEL_OLEBORN_ORDERHUB: DEBUG
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - order-service-network
+
+
 
 # -------------------------------------------------------------------------------
 # Изолированная сеть для сервисов

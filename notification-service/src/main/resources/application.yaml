@@ -6,6 +6,9 @@ spring:
   application:
     name: notification-service
 
+  profiles:
+    active: elk
+
 management:
   observations:
     annotations:
@@ -14,6 +17,8 @@ management:
   tracing:
     sampling:
       probability: 1.0
+    propagation:
+      type: w3c
 
   otlp:
     metrics:
@@ -26,7 +31,3 @@ management:
         otlp:
           endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
-
-logging:
-  pattern:
-    console: "%d{ISO8601} %-5level [%thread] %X{traceId} %X{spanId} %logger{36} - %msg%n"

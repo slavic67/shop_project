@@ -1,0 +1,42 @@
+
+server:
+  port: ${PAYMENT_SERVICE_PORT:8083}
+
+spring:
+  application:
+    name: payment-service
+
+  profiles:
+    active: ${PAYMENT_SERVICE_PROFILES:default}
+
+management:
+  observations:
+    annotations:
+      enabled: true
+
+  tracing:
+    sampling:
+      probability: 1.0
+    propagation:
+      type: w3c   # W3C Trace Context, traceparent: содержит Trace ID, Span ID и флаги трассировки
+
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - metrics
+          - info
+          - prometheus
+          - loggers
+
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}

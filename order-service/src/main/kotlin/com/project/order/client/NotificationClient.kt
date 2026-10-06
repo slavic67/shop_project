@@ -12,7 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient
 @Service
 @RequiredArgsConstructor
 class NotificationClient(
-    private val webClient: WebClient
+    private val notificationWebClient: WebClient
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -34,7 +34,7 @@ class NotificationClient(
             val request: NotificationRequest = NotificationRequest(orderId, "CREATED")
 
 
-            webClient.post()
+            notificationWebClient.post()
                 .uri("/api/notifications")
                 .bodyValue(request)
                 .retrieve()

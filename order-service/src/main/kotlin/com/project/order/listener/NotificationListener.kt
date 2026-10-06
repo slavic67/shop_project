@@ -1,4 +1,4 @@
-package com.project.order
+package com.project.order.listener
 
 import com.project.order.client.NotificationClient
 import com.project.order.domain.dto.OrderCreatedEvent

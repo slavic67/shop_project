@@ -1,6 +1,6 @@
 package com.project.order.domain
 
-import com.project.order.OrderStatus
+import com.project.order.dictionary.OrderStatus
 import jakarta.persistence.*
 import java.math.BigDecimal
 import java.time.Instant
@@ -47,4 +47,13 @@ class Order constructor() {
             item.price.multiply(BigDecimal.valueOf(item.quantity.toLong()))
         }.reduce(BigDecimal.ZERO, BigDecimal::add)
     }
+
+    fun getTotalPrice() : BigDecimal {
+        if (this.items.isEmpty()) {
+            return BigDecimal.ZERO
+        }
+
+        return items.stream().map(OrderItem::price).reduce(BigDecimal.ZERO, BigDecimal::add)
+    }
+
 }

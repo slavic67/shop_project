@@ -13,7 +13,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleException(ex: MethodArgumentNotValidException) : ResponseEntity<ErrorDto> {
 
-        val errors: List<String> = ex.getFieldErrors()
+        val errors: List<String> = ex.fieldErrors
             .stream().map { error-> error.field + ":" + error.defaultMessage }
             .collect(Collectors.toList())
 
@@ -24,7 +24,21 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundOrderException::class)
     fun handleException(ex: NotFoundOrderException): ResponseEntity<ErrorDto> {
-        val error: ErrorDto = ErrorDto(404, "Order Not Found", ex.message?:"");
+        val error = ErrorDto(404, "Order Not Found", ex.message?:"");
         return  ResponseEntity.badRequest().body(error);
     }
+
+    @ExceptionHandler(PaymentFailedException::class)
+    fun handleException(ex: PaymentFailedException): ResponseEntity<ErrorDto> {
+        val error = ErrorDto(500, "Ошибка приложения", ex.message?:"");
+        return  ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(CircuitBreakerOpenException::class)
+    fun handleException(ex: CircuitBreakerOpenException): ResponseEntity<ErrorDto> {
+        val error = ErrorDto(500, "Ошибка приложения", ex.message?:"");
+        return  ResponseEntity.badRequest().body(error);
+    }
+
+
 }

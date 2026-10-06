@@ -1,4 +1,4 @@
-package com.project.order
+package com.project.order.domain.dto
 
 import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.Min

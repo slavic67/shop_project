@@ -1,7 +1,9 @@
-package com.project.order
+package com.project.order.mapper
 
 import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
+import com.project.order.domain.dto.OrderItemResponse
+import com.project.order.domain.dto.OrderResponse
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
 
@@ -14,13 +16,13 @@ class OrderMapper {
             item.productName,
             item.quantity,
             item.price,
-            item.price?.multiply(BigDecimal(item.quantity))
+            item.price.multiply(BigDecimal(item.quantity))
         )
 
     fun from(order: Order) : OrderResponse {
 
         val total: BigDecimal = order.items.stream()
-            .map { it.price!!.multiply(BigDecimal.valueOf(it.quantity.toLong())) }
+            .map { it.price.multiply(BigDecimal.valueOf(it.quantity.toLong())) }
             .reduce(BigDecimal.ZERO, BigDecimal::add)
 
         val items: List<OrderItemResponse> = order.items.stream()

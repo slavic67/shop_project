@@ -1,8 +1,7 @@
-package com.project.order
+package com.project.order.domain.dto
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.*
-import java.math.BigDecimal
 
 data class CreateOrderRequest(
 

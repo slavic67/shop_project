@@ -7,6 +7,7 @@ import com.project.order.domain.dto.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
 import com.project.order.domain.dto.PaymentResponseDto
 import com.project.order.exception.NotFoundOrderException
+import com.project.order.exception.PaymentFailedException
 import com.project.order.mapper.OrderMapper
 import com.project.order.metrics.annotation.BusinessMetric
 import com.project.order.repository.OrderRepository
@@ -37,7 +38,9 @@ class OrderService(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Transactional
+    //timeout для защиты от долгих SQL-запросов или залипаний на уровне БД, если метод выполняется дольше 5 секунд — транзакция откатится
+    //не контролирует вызовы внешних сервисов, только бд
+    @Transactional(timeout = 5)
     @BusinessMetric(
         value = "orders.created",
         tags = ["operation=create", "type=write"]
@@ -47,49 +50,37 @@ class OrderService(
 
         log.debug("В метод createOrder получен запрос: {}", request)
 
-        if (failureMode.get()) {
-
-            val randomInt: Int = random.nextInt(100)
-
-            log.info("Выпало число: $random")
-
-            if (randomInt < 30) {
-                log.error("Возникли проблемы с сохранением заказа")
-                throw RuntimeException("Ошибка соединения с бд")
-            }
-
-            if (randomInt > 70) {
-                Thread.sleep(200)
-            }
-
-        }
-
-
-        val items :List<OrderItem> = request.items.stream()
-            .map {
-                OrderItem(
-                    it.productId,
-                    it.productName,
-                    it.quantity,
-                    it.price
-                )
-            }
-            .toList()
-
-        val order : Order = Order(items)
-        val savedOrder = orderRepository.saveAndFlush(order)
-
-        val response: PaymentResponseDto? = paymentService.processPaymentResilience4j(savedOrder)
-
-        if (response!=null && !response.isSuccessful) {
-            log.warn("Бизнес-ошибка оплаты: ${response.message}")
-        }
-
-        log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
-
-        log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
-
         try {
+
+            runFail()
+
+            val items :List<OrderItem> = request.items.stream()
+                .map {
+                    OrderItem(
+                        it.productId,
+                        it.productName,
+                        it.quantity,
+                        it.price
+                    )
+                }
+                .toList()
+
+            val order : Order = Order(items)
+            val savedOrder = orderRepository.saveAndFlush(order)
+
+//            //синхронный вариант
+//            val response: PaymentResponseDto? =paymentService.processPaymentFeign(savedOrder)
+
+            val response: PaymentResponseDto? = paymentService.processPaymentResilience4j(savedOrder).get()
+
+            if (response!=null && !response.isSuccessful) {
+                log.warn("Бизнес-ошибка оплаты: ${response.message}")
+            }
+
+            log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
+
+            log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
+
             MDC.put("order_id", savedOrder.id.toString());
             MDC.put("total_amount", savedOrder.calculateTotalAmount().toString());
             MDC.put("order_status", savedOrder.status?.name);
@@ -107,6 +98,10 @@ class OrderService(
             Span.current().setAttribute("orderId", order.id!!)
 
             return orderMapper.from(order)
+        } catch (e: Exception) {
+            val cause: Throwable? = e.cause
+            log.error("Ошибка при оплате заказа {}", cause?.message)
+            throw PaymentFailedException("Payment error: $cause?.message")
         } finally {
             // Очищаем только свои поля, trace_id остаётся чтобы не засорять память
             MDC.remove("order_id");
@@ -138,5 +133,24 @@ class OrderService(
     fun setFailureMode(enabled: Boolean) {
             failureMode.set(enabled)
             log.info("Failure mode в OrderService, переключен на: $enabled")
+    }
+
+    private fun runFail() {
+        if (failureMode.get()) {
+
+            val randomInt: Int = random.nextInt(100)
+
+            log.debug("Выпало число: $randomInt")
+
+            if (randomInt <30) {
+                log.error("Возникли проблемы с обработкой сохранения заказа")
+                throw RuntimeException("Типа проблемы с обработкой заказа")
+            }
+
+            if (randomInt > 70) {
+                log.warn("OrderService замедлился")
+                Thread.sleep(200)
+            }
+        }
     }
 }

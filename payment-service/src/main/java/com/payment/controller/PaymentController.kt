@@ -35,13 +35,17 @@ class PaymentController {
             val randomRequest = random.nextInt(100)
 
             //Имитация ошибок
-            if (randomRequest<80) {
+            if (randomRequest<60) {
 
-                log.error("Симуляция ошибки оплаты заказа id: ${request.orderId}")
+//                log.error("Симуляция ошибки оплаты заказа id: ${request.orderId}")
+//
+//                return ResponseEntity
+//                    .status(HttpStatus.SERVICE_UNAVAILABLE)
+//                    .body(PaymentResponseDto(false, "Сервис оплаты недоступен"))
 
-                return ResponseEntity
-                    .status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(PaymentResponseDto(false, "Сервис оплаты недоступен"))
+                log.error("Симуляция замедления оплаты заказа id ${request.orderId}")
+
+                Thread.sleep(5000)
             }
         }
 

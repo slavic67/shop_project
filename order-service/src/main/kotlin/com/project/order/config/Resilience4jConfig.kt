@@ -1,5 +1,6 @@
 package com.project.order.config
 
+import io.github.resilience4j.bulkhead.BulkheadRegistry
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import io.github.resilience4j.retry.RetryRegistry
 import jakarta.annotation.PostConstruct
@@ -12,7 +13,8 @@ import org.springframework.context.annotation.Configuration
 class Resilience4jConfig(
 
     private val circuitBreakerRegistry: CircuitBreakerRegistry,
-    private val retryRegistry: RetryRegistry
+    private val retryRegistry: RetryRegistry,
+    private val bulkheadRegistry: BulkheadRegistry
 
     ) {
 
@@ -52,6 +54,18 @@ class Resilience4jConfig(
                 log.error("ERROR: попытка ${event.numberOfRetryAttempts}, причина: ${event.lastThrowable.message}")
             }
 
+
+        bulkheadRegistry.bulkhead("paymentService")
+            .eventPublisher
+            .onCallPermitted { event ->
+                log.debug("BULKHEAD: вызов разрешен: {}", event)
+            }
+            .onCallFinished { event ->
+                log.debug("BULKHEAD: вызов ЗАКОНЧЕН: {}", event)
+            }
+            .onCallRejected { event ->
+                log.warn("BULKHEAD: вызов ОТКЛОНЕН: {}", event)
+            }
     }
 
 }

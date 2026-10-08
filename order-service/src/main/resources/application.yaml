@@ -34,6 +34,14 @@ spring:
   jooq:
     sql-dialect: postgres
 
+  task:
+    scheduling:
+      pool:
+        size: 5
+      thread-name-prefix: "scheduled-"
+      shutdown:
+        await-termination: true
+        await-termination-period: 60s
 
 
 
@@ -123,7 +131,7 @@ resilience4j:
         retryExceptions:
           - feign.FeignException
           - org.springframework.web.reactive.function.client.WebClientResponseException
-          - com.project.order.exception.PaymentFailedException
+          - com.project.order.exception.variants.PaymentFailedException
 
           - io.netty.handler.timeout.ReadTimeoutException
           - java.util.concurrent.TimeoutException
@@ -153,10 +161,11 @@ resilience4j:
         minimumNumberOfCalls: 10        # после какого количества начинаем
         recordExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException
-          - com.project.order.exception.PaymentFailedException
+          - com.project.order.exception.variants.PaymentFailedException
 
           - io.netty.handler.timeout.ReadTimeoutException
           - java.util.concurrent.TimeoutException
+          - io.github.resilience4j.bulkhead.BulkheadFullException
         ignoreExceptions:
           - java.lang.IllegalArgumentException
   timelimiter:
@@ -177,3 +186,13 @@ resilience4j:
         baseConfig: default              # наследовать настройки из default
         maxConcurrentCalls: 5            # только 5 одновременных вызовов к платежам
         maxWaitDuration: 0               # не ждать, сразу отказ
+
+payment:
+  retry:
+    max-attempts: 3
+    timeout: 30
+    batch-size: 100 # Максимум 50 заказов за один запуск сканера
+scheduling:
+  payment-scanner:
+    fixed-delay: 30000 # 30 секунд между запусками
+    initial-delay: 30000

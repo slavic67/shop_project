@@ -1,6 +1,9 @@
 package com.project.order.exception
 
 import com.project.order.domain.dto.ErrorDto
+import com.project.order.exception.variants.CircuitBreakerOpenException
+import com.project.order.exception.variants.NotFoundOrderException
+import com.project.order.exception.variants.PaymentFailedException
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -38,6 +41,12 @@ class GlobalExceptionHandler {
     fun handleException(ex: CircuitBreakerOpenException): ResponseEntity<ErrorDto> {
         val error = ErrorDto(500, "Ошибка приложения", ex.message?:"");
         return  ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(BaseException::class)
+    fun handleException(ex: BaseException): ResponseEntity<ErrorDto> {
+        val error = ErrorDto(ex.status.value(), ex.errorCode, ex.message?:"" );
+        return ResponseEntity.status(ex.status).body(error);
     }
 
 

@@ -1,6 +1,8 @@
 package com.project.order.repository
 
+import com.project.order.dictionary.OrderStatus
 import com.project.order.domain.Order
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.*
@@ -22,4 +24,9 @@ interface OrderRepository : JpaRepository<Order, Long> {
      */
     @EntityGraph(attributePaths = ["items"])
     fun findWithItemsById(id: Long): Optional<Order>
+
+    fun findByStatus(status: OrderStatus, pageable: Pageable): List<Order>
+
+    fun countByStatus(status: OrderStatus): Long
+
 }

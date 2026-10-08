@@ -9,33 +9,41 @@ import java.util.UUID
 
 @Entity
 @Table(name = "orders")
-class Order constructor() {
+class Order(
+    @Enumerated(EnumType.STRING)
+    var status: OrderStatus= OrderStatus.CREATED,
+
+    @Column(name = "order_number", nullable = false, unique = true)
+    var orderNumber: String=UUID.randomUUID().toString(),
+
+    @Column(name = "created_at")
+    var createAt: Instant = Instant.now()
+) {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null
 
-    @Enumerated(EnumType.STRING)
-    var status: OrderStatus? =null
 
-    @Column(name = "order_number", nullable = false, unique = true)
-    var orderNumber: String?=null
-
-    @Column(name = "created_at")
-    var createAt: Instant? =null
 
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
     @JoinColumn(name = "order_id")
     var items: MutableList<OrderItem> = mutableListOf()
 
-    constructor(items: List<OrderItem>) : this() {
-        this.status = OrderStatus.CREATED
-        this.createAt = Instant.now()
+    constructor(items: List<OrderItem>) : this(
+        status = OrderStatus.CREATED,
+        orderNumber = UUID.randomUUID().toString(),
+        createAt = Instant.now()
+    ) {
         this.items.addAll(items)
-        this.orderNumber = UUID.randomUUID().toString()
-
         items.forEach {item -> item.order=this}
     }
+
+    fun addItems(items: List<OrderItem>) {
+        this.items.addAll(items)
+        items.forEach {item -> item.order=this}
+    }
+
 
     //метод расчета суммы заказа
     fun calculateTotalAmount() : BigDecimal {

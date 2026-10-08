@@ -1,5 +1,6 @@
 package com.project.order.dictionary
 
 enum class OrderStatus {
-    CREATED, PAID, CANCELLED
+    CREATED, PAID, CANCELLED,
+    PENDING
 }

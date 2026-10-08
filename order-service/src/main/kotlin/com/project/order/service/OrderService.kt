@@ -1,13 +1,15 @@
 package com.project.order.service
 
+import com.project.order.dictionary.OrderStatus
 import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
 import com.project.order.domain.dto.CreateOrderRequest
 import com.project.order.domain.dto.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
 import com.project.order.domain.dto.PaymentResponseDto
-import com.project.order.exception.NotFoundOrderException
-import com.project.order.exception.PaymentFailedException
+import com.project.order.exception.variants.NotFoundOrderException
+import com.project.order.exception.variants.OrderCreationException
+import com.project.order.exception.variants.PaymentFailedException
 import com.project.order.mapper.OrderMapper
 import com.project.order.metrics.annotation.BusinessMetric
 import com.project.order.repository.OrderRepository
@@ -40,7 +42,7 @@ class OrderService(
 
     //timeout для защиты от долгих SQL-запросов или залипаний на уровне БД, если метод выполняется дольше 5 секунд — транзакция откатится
     //не контролирует вызовы внешних сервисов, только бд
-    @Transactional(timeout = 5)
+    @Transactional(timeout = 30)
     @BusinessMetric(
         value = "orders.created",
         tags = ["operation=create", "type=write"]
@@ -54,45 +56,62 @@ class OrderService(
 
             runFail()
 
+            val order = Order()
             val items :List<OrderItem> = request.items.stream()
                 .map {
                     OrderItem(
                         it.productId,
                         it.productName,
                         it.quantity,
-                        it.price
+                        it.price,
+                        order
                     )
                 }
                 .toList()
+            order.addItems(items)
 
-            val order : Order = Order(items)
+            //сначала всегда PENDING, потому что не знаем как закончится
+            order.status = OrderStatus.PENDING
+
             val savedOrder = orderRepository.saveAndFlush(order)
+
+            log.info("Заказ {} создан со статусом PENDING", savedOrder.id);
 
 //            //синхронный вариант
 //            val response: PaymentResponseDto? =paymentService.processPaymentFeign(savedOrder)
 
             val response: PaymentResponseDto? = paymentService.processPaymentResilience4j(savedOrder).get()
 
-            if (response!=null && !response.isSuccessful) {
-                log.warn("Бизнес-ошибка оплаты: ${response.message}")
+            if (response!=null && response.requiresPendingProcessing) {
+                orderRepository.save(savedOrder)
+                log.info("Заказ ${savedOrder.id} сохранен со статусом PENDING")
+            } else if (response!=null && response.isSuccessful) {
+                savedOrder.status=OrderStatus.PAID
+                orderRepository.save(savedOrder)
+
+                log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
+
+                eventPublisher.publishEvent(
+                    OrderCreatedEvent.of(
+                        savedOrder.id!!,
+                        MDC.getCopyOfContextMap()
+                    )
+                )
+
+                log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
+            } else {
+                // Бизнес-ошибка (недостаточно средств и т.п.)
+                savedOrder.status= OrderStatus.CANCELLED
+                orderRepository.save(savedOrder)
+
+                log.warn("Бизнес-ошибка оплаты зкакза {}: {}", savedOrder.id, response?.message)
             }
-
-            log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
-
-            log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
 
             MDC.put("order_id", savedOrder.id.toString());
             MDC.put("total_amount", savedOrder.calculateTotalAmount().toString());
             MDC.put("order_status", savedOrder.status?.name);
 
-            eventPublisher.publishEvent(
-                OrderCreatedEvent.of(
-                savedOrder.id!!,
-                MDC.getCopyOfContextMap()
-                )
-            )
-
-            log.debug("Заказ успешно сохранен")
+            log.debug("Все успешно сохранено")
 
             // Теги добавятся в order.creation span
             Span.current().setAttribute("orderId", order.id!!)
@@ -100,8 +119,8 @@ class OrderService(
             return orderMapper.from(order)
         } catch (e: Exception) {
             val cause: Throwable? = e.cause
-            log.error("Ошибка при оплате заказа {}", cause?.message)
-            throw PaymentFailedException("Payment error: $cause?.message")
+            log.error("Ошибка при оформлении заказа {}", cause?.message)
+            throw OrderCreationException("Error: $cause?.message")
         } finally {
             // Очищаем только свои поля, trace_id остаётся чтобы не засорять память
             MDC.remove("order_id");

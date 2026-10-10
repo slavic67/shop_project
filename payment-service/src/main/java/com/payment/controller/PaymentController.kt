@@ -49,7 +49,7 @@ class PaymentController {
             }
         }
 
-        return ResponseEntity.ok(PaymentResponseDto(true, "Оплата проведена"))
+        return ResponseEntity.ok(PaymentResponseDto(true, "Оплата проведена", false))
 
     }
 

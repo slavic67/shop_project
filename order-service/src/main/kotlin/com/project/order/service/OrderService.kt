@@ -12,6 +12,7 @@ import com.project.order.exception.variants.OrderCreationException
 import com.project.order.exception.variants.PaymentFailedException
 import com.project.order.mapper.OrderMapper
 import com.project.order.metrics.annotation.BusinessMetric
+import com.project.order.producer.NotificationProducer
 import com.project.order.repository.OrderRepository
 import io.micrometer.observation.annotation.Observed
 import io.opentelemetry.api.trace.Span
@@ -33,7 +34,8 @@ class OrderService(
     private val orderRepository: OrderRepository,
     private val orderMapper: OrderMapper,
     private val eventPublisher: ApplicationEventPublisher,
-    private val paymentService: PaymentService
+    private val paymentService: PaymentService,
+    private val notificationProducer: NotificationProducer,
 ) {
     private val random = Random()
     private val failureMode: AtomicBoolean = AtomicBoolean(false)
@@ -91,7 +93,7 @@ class OrderService(
 
                 log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
 
-                eventPublisher.publishEvent(
+                notificationProducer.sendOrderCreatedEvent(
                     OrderCreatedEvent.of(
                         savedOrder.id!!,
                         MDC.getCopyOfContextMap()

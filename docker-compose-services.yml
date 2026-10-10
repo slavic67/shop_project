@@ -44,6 +44,30 @@ services:
       retries: 5      # 5 неудач = контейнер нездоров
 
   # ---------------------------------------------------------------------------
+  # RabbitMQ - Брокер сообщений (AMQP 0-9-1) с панелью управления
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:4.2.5-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"        # AMQP-порт для клиентов
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"  # Веб-интерфейс управления
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq      # Персистентность сообщений и конфигурации
+    restart: unless-stopped
+    networks:
+      - order-service-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ---------------------------------------------------------------------------
   # Prometheus - сбор метрик
   # ---------------------------------------------------------------------------
   prometheus:
@@ -221,9 +245,11 @@ volumes:
   jaeger_data:
     name: order_jaeger_data
   elasticsearch_data:
-    name: orderhub_elasticsearch_data
+    name: elasticsearch_data
   filebeat_data:
-    name: orderhub_filebeat_data
+    name: filebeat_data
+  rabbitmq_data:
+    name: rabbitmq_data
 
 
 # -------------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient
 
 @Service
 @RequiredArgsConstructor
+@Deprecated("deprecated class")
 class NotificationClient(
     private val notificationWebClient: WebClient
 ) {

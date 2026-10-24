@@ -1,6 +1,5 @@
 package com.notification.consumer
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.notification.event.OrderCreatedEvent
 import lombok.RequiredArgsConstructor
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -13,7 +12,7 @@ import org.springframework.kafka.retrytopic.TopicSuffixingStrategy
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.kafka.annotation.BackOff
 import org.springframework.stereotype.Component
-
+import tools.jackson.databind.ObjectMapper
 
 
 @Component

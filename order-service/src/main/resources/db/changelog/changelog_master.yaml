@@ -26,6 +26,15 @@ databaseChangeLog:
         splitStatements: true
         endDelimiter: ;
 
+  - changeSet:
+      id: V4__create_outbox_table.sql
+      author: slava
+      sqlFile:
+        path: db/changelog/changes/V4__create_outbox_table.sql
+        relativeToChangeFile: true
+        splitStatements: true
+        endDelimiter: ;
+
 #  - property:
 #      name: now
 #      value: now()

@@ -13,6 +13,7 @@ import java.util.function.BiConsumer
 
 @Service
 @RequiredArgsConstructor
+@Deprecated("deprecated class")
 class KafkaNotificationProducer(
     @Value("\${app.topic.order-create-topic}")
     private val orderCreateTopic: String,
@@ -28,6 +29,7 @@ class KafkaNotificationProducer(
 
 
     fun sendOrderCreatedEvent(event: OrderCreatedEvent) {
+        if (true) return
 
         //Все события для одного orderId будут попадать в одну партицию → сохраняется порядок событий по заказу
         val key: String = event.orderId.toString()

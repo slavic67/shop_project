@@ -48,7 +48,7 @@ spring:
 
 app:
   topic:
-    order-create-topic: "order.created"
+    order-create-topic: "order.outbox"
 
 management:
   observations:
@@ -81,6 +81,11 @@ management:
       export:
         otlp:
           endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
 
 #logging:
 #  # Блок настройки структурированного (JSON) логирования

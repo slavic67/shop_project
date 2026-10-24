@@ -1,8 +1,10 @@
 package com.project.order.service
 
 import com.project.order.dictionary.OrderStatus
+import com.project.order.dictionary.OutboxStatus
 import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
+import com.project.order.domain.OutboxEvent
 import com.project.order.domain.dto.CreateOrderRequest
 import com.project.order.domain.dto.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
@@ -11,8 +13,10 @@ import com.project.order.exception.variants.NotFoundOrderException
 import com.project.order.exception.variants.OrderCreationException
 import com.project.order.mapper.OrderMapper
 import com.project.order.metrics.annotation.BusinessMetric
+import com.project.order.outbox.DebeziumMetrics
 import com.project.order.producer.KafkaNotificationProducer
 import com.project.order.repository.OrderRepository
+import com.project.order.repository.OutboxEventRepository
 import io.micrometer.observation.annotation.Observed
 import io.opentelemetry.api.trace.Span
 import lombok.RequiredArgsConstructor
@@ -32,9 +36,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 class OrderService(
     private val orderRepository: OrderRepository,
     private val orderMapper: OrderMapper,
-    private val eventPublisher: ApplicationEventPublisher,
     private val paymentService: PaymentService,
-    private val kafkaNotificationProducer: KafkaNotificationProducer,
+    private val outboxEventRepository: OutboxEventRepository,
+    private val debeziumMetrics: DebeziumMetrics
 ) {
     private val random = Random()
     private val failureMode: AtomicBoolean = AtomicBoolean(false)
@@ -55,8 +59,10 @@ class OrderService(
 
         try {
 
+            // Симуляция ошибок
             runFail()
 
+            // Создаем сущность заказа
             val order = Order()
             val items :List<OrderItem> = request.items.stream()
                 .map {
@@ -74,30 +80,47 @@ class OrderService(
             //сначала всегда PENDING, потому что не знаем как закончится
             order.status = OrderStatus.PENDING
 
+            // Сохраняем заказ
             val savedOrder = orderRepository.saveAndFlush(order)
 
             log.info("Заказ {} создан со статусом PENDING", savedOrder.id);
 
-//            //синхронный вариант
-//            val response: PaymentResponseDto? =paymentService.processPaymentFeign(savedOrder)
-
+            // Проводим оплату
             val response: PaymentResponseDto? = paymentService.processPaymentResilience4j(savedOrder).get()
 
             if (response!=null && response.requiresPendingProcessing) {
-                orderRepository.save(savedOrder)
+                // Если сервис оплаты ответил, что нужна обработка, тогда ничего не делаем
                 log.info("Заказ ${savedOrder.id} сохранен со статусом PENDING")
             } else if (response!=null && response.isSuccessful) {
+                // Если оплата прошла успешно, меняем статус заказу
                 savedOrder.status=OrderStatus.PAID
                 orderRepository.save(savedOrder)
 
                 log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
 
-                kafkaNotificationProducer.sendOrderCreatedEvent(
-                    OrderCreatedEvent.of(
-                        savedOrder.id!!,
-                        MDC.getCopyOfContextMap()
-                    )
+                // Сохраняем событие создания заказа в outbox table
+                val traceId: String = Span.current().spanContext.traceId
+                val spanId: String = Span.current().spanContext.spanId
+
+                val orderCreatedEvent: OrderCreatedEvent = OrderCreatedEvent.of(
+                    savedOrder.id!!,
+                    MDC.getCopyOfContextMap()
                 )
+
+                val outboxEvent= OutboxEvent(
+                    aggregateType = "Order",
+                    aggregateId = savedOrder.id.toString(),
+                    eventType = "OrderCreatedEvent",
+                    payload = orderCreatedEvent,
+                    traceId = traceId,
+                    spanId = spanId,
+                    status = OutboxStatus.NEW,
+                )
+
+                outboxEventRepository.save(outboxEvent)
+
+                // Обновляем метрику созданных outbox событий
+                debeziumMetrics.incrementOutBoxCreated()
 
                 log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
             } else {
@@ -110,7 +133,7 @@ class OrderService(
 
             MDC.put("order_id", savedOrder.id.toString());
             MDC.put("total_amount", savedOrder.calculateTotalAmount().toString());
-            MDC.put("order_status", savedOrder.status?.name);
+            MDC.put("order_status", savedOrder.status.name);
 
             log.debug("Все успешно сохранено")
 

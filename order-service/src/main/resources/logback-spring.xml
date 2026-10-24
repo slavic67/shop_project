@@ -43,5 +43,5 @@
     </springProfile>
 
     <!-- Уровни логирования -->
-    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.SQL" level="INFO"/>
 </configuration>

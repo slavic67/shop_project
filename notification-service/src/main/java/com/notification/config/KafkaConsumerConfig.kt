@@ -1,7 +1,6 @@
 package com.notification.config
 
 
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -14,9 +13,6 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.core.ConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.ContainerProperties
-import org.springframework.kafka.support.converter.JacksonJsonMessageConverter
-import org.springframework.kafka.support.converter.MappingJacksonParameterizedConverter
-import org.springframework.messaging.converter.SmartMessageConverter
 
 
 /**
@@ -105,36 +101,4 @@ class KafkaConsumerConfig(
         return factory;
 
     }
-
-    /**
-     * Конвертер сообщений для работы с параметризованными типами (generics).
-     * <p>
-     * Стандартный JsonDeserializer не умеет десериализовать, например, List<OrderCreatedEvent>
-     * или Envelope<OrderCreatedEvent>, потому что информация о generic-типе стирается в runtime.
-     * MappingJacksonParameterizedConverter решает эту проблему, сохраняя метаданные о типе.
-     * <p>
-     * Он необходим в следующих сценариях:
-     * <ul>
-     *   <li><b>Пакетная обработка (batch)</b>: если слушатель принимает List<OrderCreatedEvent>,
-     *       без этого конвертера Spring не сможет превратить JSON-массив в список объектов.</li>
-     *   <li><b>Сложные обёртки</b>: например, Envelope<T> или Result<T, Error>.</li>
-     *   <li><b>Обобщённые обработчики</b>: когда один метод слушает несколько типов событий.</li>
-     * </ul>
-     * В нашем текущем сценарии мы используем ручную десериализацию через byte[],
-     * поэтому этот бин не используется. Однако он оставлен как пример и может пригодиться
-     * при переходе на автоматическую десериализацию с JsonDeserializer.
-     *
-     * @param objectMapper бин ObjectMapper (уже настроен в Spring)
-     * @return конвертер, способный десериализовать generic-типы
-     */
-    @Bean
-    fun smartMessageConverter(objectMapper: ObjectMapper): SmartMessageConverter {
-        val converter: MappingJacksonParameterizedConverter = MappingJacksonParameterizedConverter()
-        converter.objectMapper = objectMapper
-        // При желании можно настроить converter.setTypePrecedence(), converter.setStrictContentTypeMatch() и т.д.
-        return converter
-    }
-
-
-
 }

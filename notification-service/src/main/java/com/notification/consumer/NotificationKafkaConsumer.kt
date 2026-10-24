@@ -56,8 +56,8 @@ class NotificationKafkaConsumer(
 
         // ===== СОЗДАНИЕ ТОПИКОВ =====
         autoCreateTopics = "true",                     // Автоматически создавать ретрай-топики и DLT
-        numPartitions = "3",                           // Количество партиций для создаваемых топиков
-        replicationFactor = "3",                       // Фактор репликации (по умолчанию -1 = использовать настройки брокера)
+        numPartitions = "1",                           // Количество партиций для создаваемых топиков
+        replicationFactor = "1",                       // Фактор репликации (по умолчанию -1 = использовать настройки брокера)
 
         // ===== ИНТЕГРАЦИЯ С LISTENER'ом =====
         listenerContainerFactory = "kafkaListenerContainerFactory", // Фабрика для консьюмеров ретрай- и DLT-топиков (по умолчанию – из @KafkaListener)
@@ -100,31 +100,6 @@ class NotificationKafkaConsumer(
         // info = "static info",                       // Добавляется в заголовок KafkaHeaders.LISTENER_INFO
         // containerPostProcessor = "postProcessor"    // Постпроцессор для модификации контейнера
     )
-
-    //этот вариант будет работать если OrderCreatedEvent идентичен отправляемому
-//    public void consume(OrderCreatedEvent event, Acknowledgment acknowledgment) {
-//        log.info("Received event for orderId={}", event.orderId());
-//
-//          //Идемпотентность
-//        if (processedEventRepository.existsById(event.orderId())) {
-//            log.warn("Duplicate event for order {}, skipping", event.orderId());
-//            acknowledgment.acknowledge(); // подтверждаем, чтобы не зациклиться
-//            return;
-//        }
-//
-//        try {
-//            log.info("Имитация бизнес-логики отправки для orderId={}", event.orderId());
-//
-//            //Ручной коммит offset
-//            acknowledgment.acknowledge();
-//            log.info("Событие для заказа: {} обработано и оффсет для него сдвинут(acknowledged) ", event.orderId());
-//
-//        } catch (Exception e) {
-//            log.error("Error processing order {}", event.orderId(), e);
-//            // Не вызываем acknowledgment – сообщение попадёт в DLT после всех retry
-//            throw new RuntimeException("Processing failed", e);
-//        }
-//    }
     fun consume(record: ConsumerRecord<String, ByteArray>, acknowledgment: Acknowledgment) {
 
             log.info("Принято сообщение в консьюмере notification")
@@ -135,18 +110,11 @@ class NotificationKafkaConsumer(
 
                 val event: OrderCreatedEvent = objectMapper.readValue(value, OrderCreatedEvent::class.java)
 
-                // Бизнес-валидация
-//                if (event.orderId ==null) {
-//                    throw IllegalArgumentException("orderId must not be null")
-//                }
-
                 log.info("Имитация бизнес-логики отправки для orderId={}", event.orderId);
 
                 //Ручной коммит offset
                 acknowledgment.acknowledge();
                 log.info("Событие для заказа: {} обработано и оффсет для него сдвинут(acknowledged) ", event.orderId);
-
-
 
             } catch (e: Exception) {
                 log.error("Error processing order",e)

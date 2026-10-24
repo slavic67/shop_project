@@ -36,6 +36,8 @@ services:
       - "max_connections=100"      # Максимум подключений (не даём упасть от перегрузки)
       - "-c"
       - "shared_buffers=256MB"      # Кэш в памяти (ускоряет запросы)
+      - "-c"
+      - "wal_level=logical"
     healthcheck:
       # Проверка, что БД действительно готова принимать подключения
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
@@ -95,10 +97,14 @@ services:
 
     networks:
       - order-service-network
-
-
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest

@@ -4,9 +4,9 @@ import com.project.order.dictionary.OrderStatus
 import com.project.order.dictionary.OutboxStatus
 import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
-import com.project.order.domain.OutboxEvent
+import com.project.order.domain.event.OutboxEvent
 import com.project.order.domain.dto.CreateOrderRequest
-import com.project.order.domain.dto.OrderCreatedEvent
+import com.project.order.domain.event.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
 import com.project.order.domain.dto.PaymentResponseDto
 import com.project.order.exception.variants.NotFoundOrderException
@@ -14,7 +14,6 @@ import com.project.order.exception.variants.OrderCreationException
 import com.project.order.mapper.OrderMapper
 import com.project.order.metrics.annotation.BusinessMetric
 import com.project.order.outbox.DebeziumMetrics
-import com.project.order.producer.KafkaNotificationProducer
 import com.project.order.repository.OrderRepository
 import com.project.order.repository.OutboxEventRepository
 import io.micrometer.observation.annotation.Observed
@@ -23,7 +22,6 @@ import lombok.RequiredArgsConstructor
 import lombok.extern.slf4j.Slf4j
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Random
@@ -78,58 +76,38 @@ class OrderService(
             order.addItems(items)
 
             //сначала всегда PENDING, потому что не знаем как закончится
-            order.status = OrderStatus.PENDING
+            order.status = OrderStatus.AWAITING_PAYMENT
 
             // Сохраняем заказ
             val savedOrder = orderRepository.saveAndFlush(order)
 
-            log.info("Заказ {} создан со статусом PENDING", savedOrder.id);
+            log.info("Заказ {} сохранен с статусом AWAITING_PAYMENT", savedOrder.id);
 
-            // Проводим оплату
-            val response: PaymentResponseDto? = paymentService.processPaymentResilience4j(savedOrder).get()
+            // Сохраняем в outbox
+            val traceId: String = Span.current().getSpanContext().getTraceId();
+            val spanId: String = Span.current().getSpanContext().getSpanId();
+            val traceparent: String = String.format("00-%s-%s-01", traceId, spanId); // формат W3C
 
-            if (response!=null && response.requiresPendingProcessing) {
-                // Если сервис оплаты ответил, что нужна обработка, тогда ничего не делаем
-                log.info("Заказ ${savedOrder.id} сохранен со статусом PENDING")
-            } else if (response!=null && response.isSuccessful) {
-                // Если оплата прошла успешно, меняем статус заказу
-                savedOrder.status=OrderStatus.PAID
-                orderRepository.save(savedOrder)
+            val orderCreatedEvent: OrderCreatedEvent = OrderCreatedEvent.of(
+                savedOrder.id!!,
+                MDC.getCopyOfContextMap()
+            )
 
-                log.info("Оплата заказа id: ${savedOrder.id}, успешно проведена")
+            val outboxEvent= OutboxEvent(
+                aggregateType = "Order",
+                aggregateId = savedOrder.id.toString(),
+                eventType = "OrderCreatedEvent",
+                payload = orderCreatedEvent,
+                traceId = traceId,
+                spanId = spanId,
+                status = OutboxStatus.NEW,
+                traceParent = traceparent,
+            )
 
-                // Сохраняем событие создания заказа в outbox table
-                val traceId: String = Span.current().spanContext.traceId
-                val spanId: String = Span.current().spanContext.spanId
+            outboxEventRepository.save(outboxEvent)
+            debeziumMetrics.incrementOutBoxCreated()
 
-                val orderCreatedEvent: OrderCreatedEvent = OrderCreatedEvent.of(
-                    savedOrder.id!!,
-                    MDC.getCopyOfContextMap()
-                )
-
-                val outboxEvent= OutboxEvent(
-                    aggregateType = "Order",
-                    aggregateId = savedOrder.id.toString(),
-                    eventType = "OrderCreatedEvent",
-                    payload = orderCreatedEvent,
-                    traceId = traceId,
-                    spanId = spanId,
-                    status = OutboxStatus.NEW,
-                )
-
-                outboxEventRepository.save(outboxEvent)
-
-                // Обновляем метрику созданных outbox событий
-                debeziumMetrics.incrementOutBoxCreated()
-
-                log.debug("Отправляем инфо о заказе, id : ${savedOrder.id}")
-            } else {
-                // Бизнес-ошибка (недостаточно средств и т.п.)
-                savedOrder.status= OrderStatus.CANCELLED
-                orderRepository.save(savedOrder)
-
-                log.warn("Бизнес-ошибка оплаты зкакза {}: {}", savedOrder.id, response?.message)
-            }
+            log.debug("Отправлено инфо о заказе, id: ${savedOrder.id}")
 
             MDC.put("order_id", savedOrder.id.toString());
             MDC.put("total_amount", savedOrder.calculateTotalAmount().toString());
@@ -196,5 +174,43 @@ class OrderService(
                 Thread.sleep(200)
             }
         }
+    }
+
+    @Transactional
+    fun completeOrder(orderId: Long) {
+        val order: Order = orderRepository.findById(orderId).orElseThrow(
+            { NotFoundOrderException("Order not found for id $orderId") },
+        )
+
+        // Проверяем, что заказ в ожидании оплаты
+        if (order.status!= OrderStatus.AWAITING_PAYMENT) {
+            log.warn("Order {} is not in AWAITING_PAYMENT state (current: {}), skipping", orderId, order.status);
+            return;
+        }
+
+        order.status = OrderStatus.PAID
+
+        orderRepository.save(order)
+
+        log.info("Order {} completed (PAID)", orderId);
+    }
+
+
+    @Transactional
+    fun cancelOrder(orderId: Long, reason: String) {
+        val order: Order = orderRepository.findById(orderId).orElseThrow(
+            { OrderCreationException("Order not found for id $orderId") },
+        )
+
+        if (order.status != OrderStatus.AWAITING_PAYMENT) {
+            log.warn("Order {} is not in AWAITING_PAYMENT state (current: {}), skipping", orderId, order.status);
+            return;
+        }
+
+        order.status = OrderStatus.CANCELLED
+
+        orderRepository.save(order)
+
+        log.info("Order {} cancelled due to: {}", orderId, reason);
     }
 }

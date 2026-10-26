@@ -58,7 +58,9 @@ class KafkaProducerConfig(
 
     @Bean
     fun retryKafkaTemplate(producerFactory: ProducerFactory<String, Any>): KafkaTemplate<String, Any> {
-        return KafkaTemplate(producerFactory)
+        val kafkaTemplate = KafkaTemplate(producerFactory)
+        kafkaTemplate.setObservationEnabled(true)
+        return kafkaTemplate
     }
 
     // ===================== ТРАНЗАКЦИОННЫЙ ПРОДЮСЕР (exactly-once) =====================

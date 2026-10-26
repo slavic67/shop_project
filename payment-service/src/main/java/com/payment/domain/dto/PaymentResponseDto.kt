@@ -1,4 +1,4 @@
-package com.payment.dto
+package com.payment.domain.dto
 
 data class PaymentResponseDto(
     val isSuccessful : Boolean,

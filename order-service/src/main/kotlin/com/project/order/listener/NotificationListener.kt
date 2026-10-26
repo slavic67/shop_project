@@ -1,8 +1,7 @@
 package com.project.order.listener
 
-import com.project.order.client.NotificationClient
-import com.project.order.domain.dto.OrderCreatedEvent
-import com.project.order.producer.KafkaNotificationProducer
+import com.project.order.domain.event.OrderCreatedEvent
+import com.project.order.messaging.producer.KafkaNotificationProducer
 import lombok.RequiredArgsConstructor
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component

@@ -2,7 +2,7 @@ package com.project.order.scheduler
 
 import com.project.order.dictionary.OrderStatus
 import com.project.order.domain.Order
-import com.project.order.domain.dto.OrderCreatedEvent
+import com.project.order.domain.event.OrderCreatedEvent
 import com.project.order.domain.dto.PaymentResponseDto
 import com.project.order.repository.OrderRepository
 import com.project.order.service.PaymentService

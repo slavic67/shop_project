@@ -1,7 +1,7 @@
 package com.project.order.repository
 
 import com.project.order.dictionary.OutboxStatus
-import com.project.order.domain.OutboxEvent
+import com.project.order.domain.event.OutboxEvent
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query

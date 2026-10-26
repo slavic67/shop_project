@@ -1,15 +1,13 @@
-package com.project.order.producer
+package com.project.order.messaging.producer
 
-import com.project.order.domain.dto.OrderCreatedEvent
+import com.project.order.domain.event.OrderCreatedEvent
 import lombok.RequiredArgsConstructor
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.support.SendResult
 import org.springframework.stereotype.Service
 import java.util.concurrent.CompletableFuture
-import java.util.function.BiConsumer
 
 @Service
 @RequiredArgsConstructor

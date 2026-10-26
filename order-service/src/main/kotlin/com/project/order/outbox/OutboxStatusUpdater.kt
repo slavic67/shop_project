@@ -24,7 +24,7 @@ class OutboxStatusUpdater(
         containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
-    fun updateStatus(record: ConsumerRecord<String, String>) {
+    fun updateStatus(record: ConsumerRecord<String, ByteArray>) {
         try {
             // Из payload достаем id события
             val json: JsonNode = objectMapper.readTree(record.value())

@@ -1,7 +1,7 @@
 package com.project.order.client
 
 import com.project.order.domain.dto.NotificationRequest
-import com.project.order.domain.dto.OrderCreatedEvent
+import com.project.order.domain.event.OrderCreatedEvent
 import lombok.RequiredArgsConstructor
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC

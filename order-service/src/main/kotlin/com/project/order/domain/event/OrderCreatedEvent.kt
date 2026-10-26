@@ -1,6 +1,5 @@
-package com.project.order.domain.dto
+package com.project.order.domain.event
 
-import com.fasterxml.jackson.annotation.JsonFormat
 import java.time.Instant
 
 data class OrderCreatedEvent(

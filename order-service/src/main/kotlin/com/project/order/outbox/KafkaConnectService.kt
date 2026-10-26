@@ -130,7 +130,7 @@ class KafkaConnectService(
         // Имя целевого топика, в который будет отправлено сообщение (статический топик)
         config["transforms.outbox.route.topic.replacement"] = outboxRouteTopic;
         // Дополнительные поля из таблицы outbox, которые нужно положить в заголовки Kafka-сообщения.
-        config["transforms.outbox.table.fields.additional.placement"] = "event_type:header";
+        config["transforms.outbox.table.fields.additional.placement"] = "event_type:header,trace_parent:header";
         // Раскрывать JSON-поле payload как тело сообщения, а не как вложенную строку.
         // Если true, сообщение в Kafka будет чистым JSON из payload, без лишней обёртки.
         config["transforms.outbox.table.expand.json.payload"] = "true";

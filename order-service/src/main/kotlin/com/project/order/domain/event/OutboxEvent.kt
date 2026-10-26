@@ -1,7 +1,6 @@
-package com.project.order.domain
+package com.project.order.domain.event
 
 import com.project.order.dictionary.OutboxStatus
-import com.project.order.domain.dto.OrderCreatedEvent
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -12,9 +11,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.annotation.CreatedBy
 import org.springframework.data.annotation.CreatedDate
-import org.springframework.data.annotation.LastModifiedBy
 import org.springframework.data.annotation.LastModifiedDate
 import java.time.Instant
 
@@ -44,7 +41,10 @@ class OutboxEvent(
     var  traceId: String,
 
     @Column(name = "span_id", nullable = false)
-    var  spanId: String
+    var  spanId: String,
+
+    @Column(name="trace_parent", nullable = false)
+    var traceParent: String
 ) {
 
     @Id

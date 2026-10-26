@@ -35,6 +35,24 @@ databaseChangeLog:
         splitStatements: true
         endDelimiter: ;
 
+  - changeSet:
+      id: V5__add_new_status_in_check_orders_table.sql
+      author: slava
+      sqlFile:
+        path: db/changelog/changes/V5__add_new_status_in_check_orders_table.sql
+        relativeToChangeFile: true
+        splitStatements: true
+        endDelimiter: ;
+
+  - changeSet:
+      id: V6__alter_outbox_event_add_column_trace_parent.sql
+      author: slava
+      sqlFile:
+        path: db/changelog/changes/V6__alter_outbox_event_add_column_trace_parent.sql
+        relativeToChangeFile: true
+        splitStatements: true
+        endDelimiter: ;
+
 #  - property:
 #      name: now
 #      value: now()

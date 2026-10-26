@@ -1,9 +1,9 @@
 package com.payment.controller
 
-import com.payment.dto.PaymentRequestDto
-import com.payment.dto.PaymentResponseDto
+import com.payment.domain.dto.PaymentRequestDto
+import com.payment.domain.dto.PaymentResponseDto
+import com.payment.service.PaymentService
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -17,12 +17,15 @@ import kotlin.random.Random
 
 @RestController
 @RequestMapping("/api/v1/payments")
-class PaymentController {
+class PaymentController(
+    private val paymentService: PaymentService
+) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
 
     private val failureMode: AtomicBoolean = AtomicBoolean(false)
     private val random = Random(System.currentTimeMillis())
+
 
     @PostMapping("/process")
     fun processPayment(@RequestBody request: PaymentRequestDto): ResponseEntity<PaymentResponseDto> {
@@ -55,10 +58,7 @@ class PaymentController {
 
     @GetMapping("admin/failure-mode")
     fun setFailureMode(@RequestParam enabled: Boolean) {
-
-        failureMode.set(enabled)
-
-        log.info("Failure mode в Payment Service, переключен на $enabled")
+        paymentService.setFailureMode(enabled)
     }
 
 }

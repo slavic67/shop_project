@@ -100,10 +100,49 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:29092", "--list" ]
       interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  orchestration:
+    image: camunda/camunda:8.9.0
+    container_name: camunda
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "7080:8080"   # Web UI (Operate, Tasklist, Admin) + REST API (/v2)
+      - "26500:26500" # gRPC (Zeebe gateway) - используется Spring-клиентом
+      - "9600:9600"   # Management / health (/actuator/health)
+    environment:
+      # --- Вторичное хранилище (Elasticsearch) ---
+      CAMUNDA_DATA_SECONDARY_STORAGE_TYPE: elasticsearch
+      CAMUNDA_DATA_SECONDARY_STORAGE_ELASTICSEARCH_URL: http://elasticsearch:9200
+      CAMUNDA_DATABASE_TYPE: elasticsearch
+      CAMUNDA_DATABASE_URL: http://elasticsearch:9200
+      # --- Экспортер Zeebe -> Elasticsearch ---
+      ZEEBE_BROKER_EXPORTERS_CAMUNDAEXPORTER_CLASSNAME: io.camunda.exporter.CamundaExporter
+      ZEEBE_BROKER_EXPORTERS_CAMUNDAEXPORTER_ARGS_CONNECT_TYPE: elasticsearch
+      ZEEBE_BROKER_EXPORTERS_CAMUNDAEXPORTER_ARGS_CONNECT_URL: http://elasticsearch:9200
+      # --- Безопасность: только для локальной разработки! ---
+      # API без авторизации, чтобы Spring-клиент подключался без токенов
+      CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTEDAPI: "true"
+      CAMUNDA_SECURITY_AUTHORIZATIONS_ENABLED: "false"
+      # --- Heap ---
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx512m"
+    volumes:
+      - camunda_data:/usr/local/zeebe/data
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 10s bash -c ':> /dev/tcp/127.0.0.1/9600' || exit 1"]
+      interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 40s
+    networks:
+      - order-service-network
 
 
   kafka-ui:
@@ -222,28 +261,30 @@ services:
   # =============================================================================
   # ELK СТЕК - структурированное логирование
   # =============================================================================
-#  elasticsearch:
-#    image: elasticsearch:8.11.0
-#    container_name: elasticsearch
-#    environment:
-#      - discovery.type=single-node
-#      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-#      - xpack.security.enabled=false
-#      - xpack.monitoring.collection.enabled=true
-#      - "cluster.name=elk"
-#    ports:
-#      - "${ELASTICSEARCH_PORT}:9200"  # HTTP API
-#      - "9300:9300"  # Transport protocol
-#    volumes:
-#      - elasticsearch_data:/usr/share/elasticsearch/data
-#    restart: unless-stopped
-#    networks:
-#      - order-service-network
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 5
+  elasticsearch:
+    image: elasticsearch:8.17.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.monitoring.collection.enabled=true
+      - bootstrap.memory_lock=true
+      - "cluster.name=elk"
+    ports:
+      - "9200:9200"  # HTTP API
+      - "9300:9300"  # Transport protocol
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+      - order-service-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 #
 #  # Elasticsearch Exporter для мониторинга в Prometheus
 #  elasticsearch-exporter:
@@ -343,6 +384,8 @@ volumes:
     name: rabbitmq_data
   kafka_data:
     name: kafka_data
+  camunda_data:
+    name: camunda_data
 
 
 # -------------------------------------------------------------------------------

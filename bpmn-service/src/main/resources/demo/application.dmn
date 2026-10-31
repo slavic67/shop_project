@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0" id="Definitions_1qssh3e" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.52.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.9.0">
+  <decision id="application" name="Определить сервисы">
+    <variable id="Variable_1" name="Определить сервисы" typeRef="Any" />
+    <decisionTable id="DecisionTable_1x2j7hl" hitPolicy="COLLECT">
+      <input id="Input_1">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>customerType</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Вызываемые сервисы" name="services" typeRef="string" biodi:width="192" />
+      <rule id="DecisionRule_1nolbqt">
+        <inputEntry id="UnaryTests_0o2yagf">
+          <text>"partner"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1unpedp">
+          <text>"partnerSystem"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_08baztm">
+        <inputEntry id="UnaryTests_1q36kpl">
+          <text>"partner", "new"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_13t2gqr">
+          <text>"publicSystem"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_1rslpl4">
+        <inputEntry id="UnaryTests_1edq3ef">
+          <text>"existing"</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_0nrojx6">
+          <text>"coreBanking"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_0jr4wvs">
+        <inputEntry id="UnaryTests_0fzvio5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1ed6k5p">
+          <text>"aml"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape id="Decision_1ia8c99_di" dmnElementRef="application">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

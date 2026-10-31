@@ -1,0 +1,43 @@
+{
+  "components": [
+    {
+      "label": "Имя",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_06vr56z",
+        "columns": null
+      },
+      "id": "Field_163st74",
+      "key": "name"
+    },
+    {
+      "label": "Сумма кредит",
+      "type": "number",
+      "layout": {
+        "row": "Row_06vr56z",
+        "columns": null
+      },
+      "id": "Field_15ugc8u",
+      "key": "amount"
+    },
+    {
+      "label": "Решение по кредиту",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_13p9zen",
+        "columns": null
+      },
+      "id": "Field_0mrwvz9",
+      "key": "decision"
+    }
+  ],
+  "type": "default",
+  "id": "application",
+  "executionPlatform": "Camunda Cloud",
+  "executionPlatformVersion": "8.9.0",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.52.0"
+  },
+  "schemaVersion": 19
+}

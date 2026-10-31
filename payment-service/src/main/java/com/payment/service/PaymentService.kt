@@ -1,5 +1,6 @@
 package com.payment.service
 
+import com.payment.domain.command.ProcessPaymentCommand
 import com.payment.domain.event.OrderCreatedEvent
 import com.payment.domain.event.PaymentCompletedEvent
 import com.payment.domain.event.PaymentFailedEvent
@@ -25,29 +26,30 @@ class PaymentService(
      * Для демонстрации используем существующий PaymentController, но можно просто заглушку.
      */
     @Transactional
-    fun processPayment(event: OrderCreatedEvent) {
+    fun processPayment(command: ProcessPaymentCommand) {
 
         //тут логика оплаты которой нет
+        log.info("Processing Payment Command: {}", command);
 
         // Отправляем результат
         if (failureMode.get()) {
             paymentProducer.sendPaymentCompletedEvent(
                 PaymentCompletedEvent(
-                    orderId = event.orderId,
+                    orderId = command.orderId,
                     transactionId = "txn_" + System.currentTimeMillis(),
                     "COMPLETED"
                 )
             )
 
-            log.info("Оплата успешна для заказа {}, отправлено PaymentCompletedEvent", event.orderId);
+            log.info("Оплата успешна для заказа {}, отправлено PaymentCompletedEvent", command.orderId);
         } else {
             paymentProducer.sendPaymentFailedEvent(
                 PaymentFailedEvent(
-                    event.orderId,
+                    command.orderId,
                     "Внутренняя ошибка сервиса"
                 )
             )
-            log.warn("Оплата не удалась для заказа {}, отправлено PaymentFailedEvent", event.orderId);
+            log.warn("Оплата не удалась для заказа {}, отправлено PaymentFailedEvent", command.orderId);
         }
 
     }

@@ -9,12 +9,23 @@ import org.springframework.kafka.config.TopicBuilder
 @Configuration
 class KafkaTopicConfig (
     @Value("\${app.topic.order-create-topic}")
-    private val orderCreateTopic: String
+    private val orderCreateTopic: String,
+
+    @Value("\${app.topic.notification-events}")
+    private val notificationEventsTopic: String
 ) {
 
     @Bean
     fun orderCreatedTopic(): NewTopic {
         return TopicBuilder.name(orderCreateTopic)
+            .partitions(3) //для демонстрации ребаланса
+            .replicas(1) //у нас один брокер
+            .build()
+    }
+
+    @Bean
+    fun notificationEventsTopic(): NewTopic {
+        return TopicBuilder.name(notificationEventsTopic)
             .partitions(3) //для демонстрации ребаланса
             .replicas(1) //у нас один брокер
             .build()

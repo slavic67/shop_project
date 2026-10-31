@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Component
 @RequiredArgsConstructor
+@Deprecated("deprecated class")
 class PaymentRetryScheduler(
 
     @Value($$"${payment.retry.batch-size:500}")
@@ -78,37 +79,37 @@ class PaymentRetryScheduler(
      * @see #isOrderExpired(Order) - проверка устаревания заказа
      */
 
-    @Scheduled(
-        fixedDelay = 30000,
-        // задержка МЕЖДУ КОНЦОМ предыдущего и НАЧАЛОМ следующего выполнения
-        // выбрана вместо fixedRate чтобы гарантировать, что задачи не накладываются
-        initialDelay = 30000
-        // задержка перед ПЕРВЫМ запуском после старта приложения
-        // даёт время на полную инициализацию контекста Spring
-    )
-    @Transactional
-    fun scanProcessPendingOrders() {
-            log.debug("Старт поиска pending заказов")
-
-        val limit: Pageable = PageRequest.of(0, batchSize)
-        // Находим все заказы в статусе PENDING
-        val pendingOrders: List<Order> = orderRepository.findByStatus(OrderStatus.PENDING, limit)
-
-        if (pendingOrders.isEmpty()) {
-            log.debug("Нет pending заказов для обработки")
-            return
-        }
-
-        log.info("Найдено {} pending заказов", pendingOrders.size)
-
-        //Обрабатываем каждый заказ
-        for (order in pendingOrders) {
-            try {
-                paymentRetryProcessor.processOrder(order)
-            } catch (e: Exception) {
-                log.error("Ошибка при обработке заказа {}", order.id, e)
-            }
-        }
-
-    }
+//    @Scheduled(
+//        fixedDelay = 30000,
+//        // задержка МЕЖДУ КОНЦОМ предыдущего и НАЧАЛОМ следующего выполнения
+//        // выбрана вместо fixedRate чтобы гарантировать, что задачи не накладываются
+//        initialDelay = 30000
+//        // задержка перед ПЕРВЫМ запуском после старта приложения
+//        // даёт время на полную инициализацию контекста Spring
+//    )
+//    @Transactional
+//    fun scanProcessPendingOrders() {
+//            log.debug("Старт поиска pending заказов")
+//
+//        val limit: Pageable = PageRequest.of(0, batchSize)
+//        // Находим все заказы в статусе PENDING
+//        val pendingOrders: List<Order> = orderRepository.findByStatus(OrderStatus.PENDING, limit)
+//
+//        if (pendingOrders.isEmpty()) {
+//            log.debug("Нет pending заказов для обработки")
+//            return
+//        }
+//
+//        log.info("Найдено {} pending заказов", pendingOrders.size)
+//
+//        //Обрабатываем каждый заказ
+//        for (order in pendingOrders) {
+//            try {
+//                paymentRetryProcessor.processOrder(order)
+//            } catch (e: Exception) {
+//                log.error("Ошибка при обработке заказа {}", order.id, e)
+//            }
+//        }
+//
+//    }
 }

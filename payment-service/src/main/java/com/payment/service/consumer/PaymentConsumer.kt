@@ -1,5 +1,6 @@
 package com.payment.service.consumer
 
+import com.payment.domain.command.ProcessPaymentCommand
 import com.payment.domain.event.OrderCreatedEvent
 import com.payment.service.PaymentService
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -44,7 +45,7 @@ class PaymentConsumer(
         autoStartDltHandler = "true"
     )
     @KafkaListener(
-        topics = ["\${app.topic.order-create-topic}"], // берём из application.yaml
+        topics = ["\${app.topic.payment-commands}"], // берём из application.yaml
         groupId = "payment-service-group",
         containerFactory = "kafkaListenerContainerFactory"
     )
@@ -52,18 +53,18 @@ class PaymentConsumer(
         record: ConsumerRecord<String, ByteArray>,
         acknowledgment: Acknowledgment
     ) {
-        log.info("Принято сообщение из топика order.outbox");
+        log.info("Принято сообщение из топика payment-events");
 
         try {
             // 1. Десериализуем событие
             val value: ByteArray = record.value()
-            val event: OrderCreatedEvent = objectMapper.readValue(value, OrderCreatedEvent::class.java)
-            val orderId: Long = event.orderId
+            val command: ProcessPaymentCommand = objectMapper.readValue(value, ProcessPaymentCommand::class.java)
+            val orderId: Long = command.orderId
 
             log.info("Обработка оплаты для заказа $orderId")
 
             // 3. Выполняем оплату (имитация бизнес-логики)
-            paymentService.processPayment(event)
+            paymentService.processPayment(command)
 
             // 4. Подтверждаем offset
             acknowledgment.acknowledge()

@@ -4,11 +4,14 @@ import com.project.order.dictionary.OrderStatus
 import com.project.order.dictionary.OutboxStatus
 import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
+import com.project.order.domain.command.CancelOrderCommand
+import com.project.order.domain.command.UpdateOrderStatusCommand
 import com.project.order.domain.event.OutboxEvent
 import com.project.order.domain.dto.CreateOrderRequest
 import com.project.order.domain.event.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
 import com.project.order.domain.dto.PaymentResponseDto
+import com.project.order.domain.event.NotificationEvent
 import com.project.order.exception.variants.NotFoundOrderException
 import com.project.order.exception.variants.OrderCreationException
 import com.project.order.mapper.OrderMapper
@@ -22,6 +25,7 @@ import lombok.RequiredArgsConstructor
 import lombok.extern.slf4j.Slf4j
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Random
@@ -34,9 +38,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 class OrderService(
     private val orderRepository: OrderRepository,
     private val orderMapper: OrderMapper,
-    private val paymentService: PaymentService,
     private val outboxEventRepository: OutboxEventRepository,
-    private val debeziumMetrics: DebeziumMetrics
+    private val debeziumMetrics: DebeziumMetrics,
+    private val applicationEventPublisher: ApplicationEventPublisher
 ) {
     private val random = Random()
     private val failureMode: AtomicBoolean = AtomicBoolean(false)
@@ -75,7 +79,7 @@ class OrderService(
                 .toList()
             order.addItems(items)
 
-            //сначала всегда PENDING, потому что не знаем как закончится
+            //сначала всегда AWAITING_PAYMENT, потому что не знаем как закончится
             order.status = OrderStatus.AWAITING_PAYMENT
 
             // Сохраняем заказ
@@ -84,8 +88,8 @@ class OrderService(
             log.info("Заказ {} сохранен с статусом AWAITING_PAYMENT", savedOrder.id);
 
             // Сохраняем в outbox
-            val traceId: String = Span.current().getSpanContext().getTraceId();
-            val spanId: String = Span.current().getSpanContext().getSpanId();
+            val traceId: String = Span.current().spanContext.traceId;
+            val spanId: String = Span.current().spanContext.spanId;
             val traceparent: String = String.format("00-%s-%s-01", traceId, spanId); // формат W3C
 
             val orderCreatedEvent: OrderCreatedEvent = OrderCreatedEvent.of(
@@ -93,6 +97,7 @@ class OrderService(
                 MDC.getCopyOfContextMap()
             )
 
+            // Создаем и сохраняем outbox событие
             val outboxEvent= OutboxEvent(
                 aggregateType = "Order",
                 aggregateId = savedOrder.id.toString(),
@@ -176,11 +181,15 @@ class OrderService(
         }
     }
 
+    /**
+     * Обработка события оплаты заказа
+     */
     @Transactional
-    fun completeOrder(orderId: Long) {
-        val order: Order = orderRepository.findById(orderId).orElseThrow(
-            { NotFoundOrderException("Order not found for id $orderId") },
-        )
+    fun completeOrder(command: UpdateOrderStatusCommand) {
+
+        val orderId = command.orderId
+
+        val order: Order = orderRepository.findById(orderId).orElseThrow { NotFoundOrderException("Order not found for id $orderId") }
 
         // Проверяем, что заказ в ожидании оплаты
         if (order.status!= OrderStatus.AWAITING_PAYMENT) {
@@ -190,14 +199,30 @@ class OrderService(
 
         order.status = OrderStatus.PAID
 
-        orderRepository.save(order)
+        val savedOrder: Order = orderRepository.save(order)
+
+        applicationEventPublisher.publishEvent(
+            NotificationEvent(
+                orderId = savedOrder.id!!,
+                transactionId = command.transactionId,
+                status = savedOrder.status.name,
+                reason = null
+            )
+        )
 
         log.info("Order {} completed (PAID)", orderId);
     }
 
 
+    /**
+     * Обработка события отмены заказа
+     */
     @Transactional
-    fun cancelOrder(orderId: Long, reason: String) {
+    fun cancelOrder(command: CancelOrderCommand) {
+
+        val orderId: Long = command.orderId
+        val reason: String = command.reason
+
         val order: Order = orderRepository.findById(orderId).orElseThrow(
             { OrderCreationException("Order not found for id $orderId") },
         )
@@ -209,7 +234,16 @@ class OrderService(
 
         order.status = OrderStatus.CANCELLED
 
-        orderRepository.save(order)
+        val savedOrder: Order = orderRepository.save(order)
+
+        applicationEventPublisher.publishEvent(
+            NotificationEvent(
+                orderId = orderId,
+                reason = reason,
+                status = savedOrder.status.name,
+                transactionId = null
+            )
+        )
 
         log.info("Order {} cancelled due to: {}", orderId, reason);
     }

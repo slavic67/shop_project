@@ -26,6 +26,7 @@ import java.util.concurrent.TimeoutException
 
 @Service
 @RequiredArgsConstructor
+@Deprecated("deprecated class")
 class PaymentService(
     private val paymentClient: PaymentClient,
     private val paymentFeignClient: PaymentFeignClient

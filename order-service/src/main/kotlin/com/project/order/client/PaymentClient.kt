@@ -13,6 +13,7 @@ import java.util.concurrent.Semaphore
 
 @Component
 @RequiredArgsConstructor
+@Deprecated("deprecated class")
 class PaymentClient(
     private val paymentWebClient: WebClient
 ) {

@@ -1,9 +1,13 @@
 package com.notification.config
 
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.notification.domain.command.CancelOrderCommand
+import com.notification.domain.command.ProcessPaymentCommand
+import com.notification.domain.command.UpdateOrderStatusCommand
+import com.notification.domain.event.OrderCreatedEvent
+import com.notification.domain.event.PaymentCompletedEvent
+import com.notification.domain.event.PaymentFailedEvent
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -13,6 +17,8 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.core.ConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.ContainerProperties
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer
 
 
 /**
@@ -40,10 +46,10 @@ class KafkaConsumerConfig(
      * через ObjectMapper, что даёт полный контроль над процессом и не привязывает
      * сервис к общему DTO-модулю.
      *
-     * @return ConsumerFactory для работы с ключами String и значениями byte[]
+     * @return ConsumerFactory для работы с ключами String и значениями String
      */
     @Bean
-    fun consumerFactory(): ConsumerFactory<String, ByteArray> {
+    fun consumerFactory(): ConsumerFactory<String, Any> {
 
         val props: MutableMap<String, Any> = HashMap()
 
@@ -60,10 +66,25 @@ class KafkaConsumerConfig(
         props[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG] = false;
 
         // Десериализатор для ключа (обычно String, например, orderId)
-        props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java;
+        props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = ErrorHandlingDeserializer::class.java;
+        props[ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS] = StringDeserializer::class.java;
 
-        // Десериализатор для значения — принимаем сырой массив байт
-        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ByteArrayDeserializer::class.java;
+        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ErrorHandlingDeserializer::class.java;
+        props[ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS] = JacksonJsonDeserializer::class.java;
+
+        props[JacksonJsonDeserializer.TYPE_MAPPINGS] = """
+            processPayment:${ProcessPaymentCommand::class.java.name},
+            cancelOrderCommand:${CancelOrderCommand::class.java.name},
+            updateOrderStatusCommand:${UpdateOrderStatusCommand::class.java.name},
+            orderCreatedEvent:${OrderCreatedEvent::class.java.name},
+            paymentCompletedEvent:${PaymentCompletedEvent::class.java.name},
+            paymentFailedEvent:${PaymentFailedEvent::class.java.name}
+            """;
+
+        props[JacksonJsonDeserializer.TRUSTED_PACKAGES] = "com.notification.";
+
+//        // Десериализатор для значения — принимаем сырой массив байт
+//        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ByteArrayDeserializer::class.java;
 
         // При необходимости здесь можно добавить дополнительные свойства:
         // - MAX_POLL_RECORDS_CONFIG (количество записей за один вызов poll)
@@ -81,9 +102,10 @@ class KafkaConsumerConfig(
      * @return фабрика, которую будет использовать @KafkaListener
      */
     @Bean
-    fun kafkaListenerContainerFactory(consumerFactory: ConsumerFactory<String, ByteArray>): ConcurrentKafkaListenerContainerFactory<String, ByteArray> {
+    fun kafkaListenerContainerFactory(consumerFactory: ConsumerFactory<String, Any>):
+            ConcurrentKafkaListenerContainerFactory<String, Any> {
 
-        val factory: ConcurrentKafkaListenerContainerFactory<String, ByteArray> =
+        val factory: ConcurrentKafkaListenerContainerFactory<String, Any> =
             ConcurrentKafkaListenerContainerFactory()
 
         factory.setConsumerFactory(consumerFactory)

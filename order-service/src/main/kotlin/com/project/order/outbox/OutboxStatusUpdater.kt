@@ -1,6 +1,7 @@
 package com.project.order.outbox
 
 import com.project.order.dictionary.OutboxStatus
+import com.project.order.domain.event.OrderCreatedEvent
 import com.project.order.repository.OutboxEventRepository
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
@@ -24,11 +25,13 @@ class OutboxStatusUpdater(
         containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
-    fun updateStatus(record: ConsumerRecord<String, ByteArray>) {
+    fun updateStatus(record: ConsumerRecord<String, OrderCreatedEvent>) {
         try {
-            // Из payload достаем id события
-            val json: JsonNode = objectMapper.readTree(record.value())
-            val eventId : Long = json.get("orderId").asLong()
+//            // Из payload достаем id события
+//            val json: JsonNode = objectMapper.readTree(record.value())
+//            val eventId : Long = json.get("orderId").asLong()
+//
+            val eventId: Long = record.value().orderId
 
             // Обновляем статус или удаляем запись
             outboxRepository.updateStatus(eventId, OutboxStatus.PUBLISHED);

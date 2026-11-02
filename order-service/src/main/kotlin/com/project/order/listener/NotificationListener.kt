@@ -1,8 +1,6 @@
 package com.project.order.listener
 
 import com.project.order.domain.event.NotificationEvent
-import com.project.order.domain.event.OrderCreatedEvent
-import com.project.order.messaging.producer.KafkaNotificationProducer
 import com.project.order.messaging.producer.NotificationProducer
 import lombok.RequiredArgsConstructor
 import org.slf4j.LoggerFactory

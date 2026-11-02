@@ -3,11 +3,8 @@ package com.project.order.messaging.consumer
 import com.project.order.domain.command.CancelOrderCommand
 import com.project.order.domain.command.UpdateOrderStatusCommand
 import com.project.order.service.OrderService
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
-import org.springframework.kafka.annotation.BackOff
-import org.springframework.kafka.annotation.KafkaListener
-import org.springframework.kafka.annotation.RetryableTopic
+import org.springframework.kafka.annotation.*
 import org.springframework.kafka.retrytopic.DltStrategy
 import org.springframework.kafka.retrytopic.SameIntervalTopicReuseStrategy
 import org.springframework.kafka.retrytopic.TopicSuffixingStrategy
@@ -17,6 +14,29 @@ import tools.jackson.databind.ObjectMapper
 
 
 @Component
+@RetryableTopic(
+    attempts = "3",
+    backOff = BackOff(delay = 1000, maxDelay = 10000, multiplier = 2.0),
+    timeout = "60000",
+    retryTopicSuffix = "-retry",
+    dltTopicSuffix = ".DLT",
+    topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+    sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
+    exclude = [IllegalArgumentException::class, NullPointerException::class],
+    traversingCauses = "true",
+    dltStrategy = DltStrategy.ALWAYS_RETRY_ON_ERROR,
+    autoCreateTopics = "true",
+    numPartitions = "1",
+    replicationFactor = "1",
+    listenerContainerFactory = "kafkaListenerContainerFactory",
+    kafkaTemplate = "reliableKafkaTemplate",
+    concurrency = "3",
+)
+@KafkaListener(
+    topics = ["\${app.topic.order-commands}"],
+    groupId = "order-service-group",
+    containerFactory = "kafkaListenerContainerFactory"
+)
 class BpmnConsumer(
     private val objectMapper: ObjectMapper,
     private val orderService: OrderService
@@ -24,63 +44,50 @@ class BpmnConsumer(
 
     private val log = LoggerFactory.getLogger(BpmnConsumer::class.java)
 
-    @RetryableTopic(
-        attempts = "3",
-        backOff = BackOff(delay = 1000, maxDelay = 10000, multiplier = 2.0),
-        timeout = "60000",
-        retryTopicSuffix = "-retry",
-        dltTopicSuffix = ".DLT",
-        topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-        sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
-        exclude = [IllegalArgumentException::class, NullPointerException::class],
-        traversingCauses = "true",
-        dltStrategy = DltStrategy.ALWAYS_RETRY_ON_ERROR,
-        autoCreateTopics = "true",
-        numPartitions = "1",
-        replicationFactor = "1",
-        listenerContainerFactory = "kafkaListenerContainerFactory",
-        concurrency = "3",
-        autoStartDltHandler = "true"
-    )
-    @KafkaListener(
-        topics = ["\${app.topic.order-commands}"],
-        groupId = "order-service-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
+
+    @KafkaHandler
     fun handleBpmCommand(
-        record: ConsumerRecord<String, ByteArray>,
+        updateCommand: UpdateOrderStatusCommand,
         acknowledgment: Acknowledgment
     ) {
-        log.info("Принято сообщение из топика order-commands")
+        log.info(
+            "Принято сообщение из топика order-commands UpdateOrderStatusCommand: {}",
+            updateCommand
+        )
 
-        try {
-            val value: ByteArray = record.value()
-            // Определяем тип события по заголовку или по содержимому
-            // Для простоты будем пробовать десериализовать сначала как PaymentCompletedEvent,
-            // если не получится – пробуем как PaymentFailedEvent.
-            // Но лучше использовать заголовок __TypeId__, который добавляет JsonSerializer.
-            // В нашем случае мы можем положить тип в отдельное поле, или использовать заголовки.
-            // Для демонстрации я покажу упрощённый вариант:
+        orderService.completeOrder(updateCommand)
 
-            val json: String = String(value)
+        acknowledgment.acknowledge()
+    }
 
-            if (json.contains("\"transactionId\"")) {
-                val updateCommand: UpdateOrderStatusCommand = objectMapper.readValue(json, UpdateOrderStatusCommand::class.java)
-                orderService.completeOrder(updateCommand)
-            } else if (json.contains("\"reason\"")) {
+    @KafkaHandler
+    fun handleBpmCommand(
+        failedCommand: CancelOrderCommand,
+        acknowledgment: Acknowledgment
+    ) {
+        log.info("Принято сообщение из топика order-commands CancelOrderCommand: {}", failedCommand)
 
-                val failedCommand: CancelOrderCommand = objectMapper.readValue(json, CancelOrderCommand::class.java)
-                orderService.cancelOrder(failedCommand)
-            } else {
-                throw IllegalArgumentException("Unknown event type")
-            }
+        orderService.cancelOrder(failedCommand)
 
-            acknowledgment.acknowledge()
+        acknowledgment.acknowledge()
+    }
 
-        } catch (e: Exception) {
-            log.error("Ошибка обработки события оплаты", e);
-            throw RuntimeException("Payment event processing failed", e);
-        }
+    @KafkaHandler(isDefault = true)
+    fun handleUnknown(command: Any, acknowledgment: Acknowledgment) {
+        log.warn(
+            "Неизвестный тип команды из order-commands: {}",
+            command.javaClass
+        )
+        acknowledgment.acknowledge()
+    }
+
+    @DltHandler
+    fun handleDlt(command: Any?, acknowledgment: Acknowledgment) {
+        log.error(
+            "Команда ушла в DLT после исчерпания попыток: {}",
+            command
+        )
+        acknowledgment.acknowledge()
     }
 
 }

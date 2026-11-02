@@ -66,7 +66,6 @@ spring:
 app:
   topic:
     order-create-topic: "order.outbox"
-    payment-events: "payment-events"         # топик для ответов от payment-service
     order-commands: "order-commands"
     notification-events: "notification-events"
 
@@ -137,12 +136,6 @@ logging:
 #    org.hibernate.sql: DEBUG
     root: info
 
-notification-service:
-  url: ${NOTIFICATION_SERVICE_URL}
-
-payment-service:
-  url: ${PAYMENT_SERVICE_URL}
-
 
 resilience4j:
   retry:
@@ -155,7 +148,6 @@ resilience4j:
         exponentialMaxWaitDuration: 10s
         randomizedWaitFactor: 0.3
         retryExceptions:
-          - feign.FeignException
           - org.springframework.web.reactive.function.client.WebClientResponseException
           - com.project.order.exception.variants.PaymentFailedException
 
@@ -212,17 +204,6 @@ resilience4j:
         baseConfig: default              # наследовать настройки из default
         maxConcurrentCalls: 5            # только 5 одновременных вызовов к платежам
         maxWaitDuration: 0               # не ждать, сразу отказ
-
-payment:
-  retry:
-    max-attempts: 3
-    timeout: 30
-    batch-size: 100 # Максимум 50 заказов за один запуск сканера
-scheduling:
-  payment-scanner:
-    fixed-delay: 30000 # 30 секунд между запусками
-    initial-delay: 30000
-
 
 debezium:
   config:

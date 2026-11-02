@@ -20,7 +20,6 @@ class PublishCancelOrderCommandDelegate(
         @Variable traceparent: String,
         @Variable("failureReason")  failureReason: String?
     ) {
-        log.info("traceparent!!! {}", traceparent)
 
         // Если есть причина отмены – можно получить из переменной, иначе дефолтная
 //        var reason = execution.getVariable("failureReason") as String?

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.client.exchange
 import org.springframework.web.client.getForEntity
 import org.springframework.web.client.getForObject
 import org.springframework.web.client.postForEntity
@@ -69,6 +70,27 @@ class KafkaConnectService(
                 log.error("Failed to create connector: status={}, body={}", e.statusCode, e.responseBodyAsString, e);
                 throw RuntimeException("Failed to create Debezium connector", e);
             }
+        }
+
+    }
+
+
+    fun applyOutboxConnectorConfig() {
+        val url= "$connectUrl/connectors/${connectorName}/config"
+        val config: Map<String, String> = buildDebeziumConfig()
+
+        val headers = HttpHeaders();
+        headers.contentType = MediaType.APPLICATION_JSON;
+        val request: HttpEntity<Map<String, String>> =  HttpEntity(config, headers);
+
+        try {
+            val response: ResponseEntity<String>  =
+            restTemplate.exchange(url, HttpMethod.PUT, request, String::class)
+            log.info("Connector config applied (создан или обновлён): {}", response.getBody());
+        } catch (e: HttpClientErrorException) {
+            log.error("Failed to apply connector config: status={}, body={}",
+                e.statusCode, e.responseBodyAsString, e);
+            throw RuntimeException("Failed to configure Debezium connector", e);
         }
 
     }
@@ -130,7 +152,7 @@ class KafkaConnectService(
         // Имя целевого топика, в который будет отправлено сообщение (статический топик)
         config["transforms.outbox.route.topic.replacement"] = outboxRouteTopic;
         // Дополнительные поля из таблицы outbox, которые нужно положить в заголовки Kafka-сообщения.
-        config["transforms.outbox.table.fields.additional.placement"] = "event_type:header,trace_parent:header";
+        config["transforms.outbox.table.fields.additional.placement"] = "event_type:header:__TypeId__,trace_parent:header:traceparent";
         // Раскрывать JSON-поле payload как тело сообщения, а не как вложенную строку.
         // Если true, сообщение в Kafka будет чистым JSON из payload, без лишней обёртки.
         config["transforms.outbox.table.expand.json.payload"] = "true";

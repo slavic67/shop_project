@@ -1,79 +1,73 @@
 package com.payment.service.consumer
 
 import com.payment.domain.command.ProcessPaymentCommand
-import com.payment.domain.event.OrderCreatedEvent
 import com.payment.service.PaymentService
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
-import org.springframework.boot.kafka.autoconfigure.KafkaProperties
-import org.springframework.kafka.annotation.KafkaListener
-import org.springframework.kafka.annotation.RetryableTopic
+import org.springframework.kafka.annotation.*
 import org.springframework.kafka.retrytopic.DltStrategy
 import org.springframework.kafka.retrytopic.SameIntervalTopicReuseStrategy
 import org.springframework.kafka.retrytopic.TopicSuffixingStrategy
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
-import tools.jackson.databind.ObjectMapper
-import org.springframework.kafka.annotation.BackOff
 
 
 @Component
+@RetryableTopic(
+    attempts = "3",
+    backOff = BackOff(delay = 1000, maxDelay = 10000, multiplier = 2.0),
+    timeout = "60000",
+    retryTopicSuffix = "-retry",
+    dltTopicSuffix = ".DLT",
+    topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+    sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
+    exclude = [IllegalArgumentException::class, NullPointerException::class],
+    traversingCauses = "true",
+    dltStrategy = DltStrategy.ALWAYS_RETRY_ON_ERROR,
+    autoCreateTopics = "true",
+    numPartitions = "1",
+    replicationFactor = "1",
+    listenerContainerFactory = "kafkaListenerContainerFactory",
+    kafkaTemplate = "reliableKafkaTemplate",
+    concurrency = "3"
+)
+@KafkaListener(
+    topics = ["\${app.topic.payment-commands}"], // берём из application.yaml
+    groupId = "payment-service-group",
+    containerFactory = "kafkaListenerContainerFactory"
+)
 class PaymentConsumer(
-    val objectMapper: ObjectMapper,
     val paymentService: PaymentService
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
 
-    @RetryableTopic(
-        attempts = "3",
-        backOff = BackOff(delay = 1000, maxDelay = 10000, multiplier = 2.0),
-        timeout = "60000",
-        retryTopicSuffix = "-retry",
-        dltTopicSuffix = ".DLT",
-        topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-        sameIntervalTopicReuseStrategy = SameIntervalTopicReuseStrategy.SINGLE_TOPIC,
-        exclude = [IllegalArgumentException::class, NullPointerException::class],
-        traversingCauses = "true",
-        dltStrategy = DltStrategy.ALWAYS_RETRY_ON_ERROR,
-        autoCreateTopics = "true",
-        numPartitions = "1",
-        replicationFactor = "1",
-        listenerContainerFactory = "kafkaListenerContainerFactory",
-        concurrency = "3",
-        autoStartDltHandler = "true"
-    )
-    @KafkaListener(
-        topics = ["\${app.topic.payment-commands}"], // берём из application.yaml
-        groupId = "payment-service-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
+    @KafkaHandler
     fun handleOrderCreated(
-        record: ConsumerRecord<String, ByteArray>,
+        command: ProcessPaymentCommand,
         acknowledgment: Acknowledgment
     ) {
         log.info("Принято сообщение из топика payment-events");
 
-        try {
-            // 1. Десериализуем событие
-            val value: ByteArray = record.value()
-            val command: ProcessPaymentCommand = objectMapper.readValue(value, ProcessPaymentCommand::class.java)
-            val orderId: Long = command.orderId
+        val orderId: Long = command.orderId
+        log.info("Обработка оплаты для заказа $orderId")
 
-            log.info("Обработка оплаты для заказа $orderId")
+        // 1. Выполняем оплату (имитация бизнес-логики)
+        paymentService.processPayment(command)
 
-            // 3. Выполняем оплату (имитация бизнес-логики)
-            paymentService.processPayment(command)
-
-            // 4. Подтверждаем offset
-            acknowledgment.acknowledge()
-        } catch (e: Exception) {
-            log.error("Ошибка обработки события оплаты", e)
-            // Не подтверждаем offset – после retry попадёт в DLT
-            throw RuntimeException("Payment processing failed", e);
-        }
-
+        // 2. Подтверждаем offset
+        acknowledgment.acknowledge()
     }
 
+    @KafkaHandler(isDefault = true)
+    fun handleUnknown(command: Any, acknowledgment: Acknowledgment) {
+        log.warn("Неизвестный тип команды из payment-commands: {}", command.javaClass)
+        acknowledgment.acknowledge()
+    }
+
+    @DltHandler
+    fun handleDlt(command: Any?, acknowledgment: Acknowledgment) {
+        log.error("Команда ушла в DLT после исчерпания попыток: {}", command)
+        acknowledgment.acknowledge()
+    }
 }

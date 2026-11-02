@@ -1,5 +1,7 @@
 package com.payment.config
 
+import com.payment.domain.event.PaymentCompletedEvent
+import com.payment.domain.event.PaymentFailedEvent
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.beans.factory.annotation.Value
@@ -9,7 +11,7 @@ import org.springframework.context.annotation.Primary
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.core.ProducerFactory
-import org.springframework.kafka.support.serializer.JsonSerializer
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
 @Configuration
 class KafkaProducerConfig(
@@ -29,7 +31,7 @@ class KafkaProducerConfig(
         val props: MutableMap<String, Any> = HashMap()
         props[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers;
         props[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java;
-        props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = JsonSerializer::class.java;
+        props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = JacksonJsonSerializer::class.java;
         props[ProducerConfig.ACKS_CONFIG] = "all";
         props[ProducerConfig.RETRIES_CONFIG] = retryMaxAttempts;
         props[ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG] = true;
@@ -40,6 +42,10 @@ class KafkaProducerConfig(
         props[ProducerConfig.COMPRESSION_TYPE_CONFIG] = "gzip";
         props[ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG] = 30000;
         props[ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG] = 120000;
+        props[JacksonJsonSerializer.TYPE_MAPPINGS] = """
+            paymentCompletedEvent:${PaymentCompletedEvent::class.java.name},
+            paymentFailedEvent:${PaymentFailedEvent::class.java.name}
+            """;
         return props;
     }
 

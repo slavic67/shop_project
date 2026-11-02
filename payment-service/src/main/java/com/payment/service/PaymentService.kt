@@ -1,7 +1,6 @@
 package com.payment.service
 
 import com.payment.domain.command.ProcessPaymentCommand
-import com.payment.domain.event.OrderCreatedEvent
 import com.payment.domain.event.PaymentCompletedEvent
 import com.payment.domain.event.PaymentFailedEvent
 import com.payment.service.producer.PaymentProducer

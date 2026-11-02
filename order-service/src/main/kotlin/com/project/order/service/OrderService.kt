@@ -6,12 +6,11 @@ import com.project.order.domain.Order
 import com.project.order.domain.OrderItem
 import com.project.order.domain.command.CancelOrderCommand
 import com.project.order.domain.command.UpdateOrderStatusCommand
-import com.project.order.domain.event.OutboxEvent
 import com.project.order.domain.dto.CreateOrderRequest
-import com.project.order.domain.event.OrderCreatedEvent
 import com.project.order.domain.dto.OrderResponse
-import com.project.order.domain.dto.PaymentResponseDto
 import com.project.order.domain.event.NotificationEvent
+import com.project.order.domain.event.OrderCreatedEvent
+import com.project.order.domain.event.OutboxEvent
 import com.project.order.exception.variants.NotFoundOrderException
 import com.project.order.exception.variants.OrderCreationException
 import com.project.order.mapper.OrderMapper
@@ -28,7 +27,7 @@ import org.slf4j.MDC
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.Random
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -54,7 +53,7 @@ class OrderService(
         value = "orders.created",
         tags = ["operation=create", "type=write"]
     )
-    @Observed(name="order.creation", contextualName = "create-order")
+    @Observed(name = "order.creation", contextualName = "create-order")
     fun createOrder(request: CreateOrderRequest): OrderResponse? {
 
         log.debug("В метод createOrder получен запрос: {}", request)
@@ -66,7 +65,7 @@ class OrderService(
 
             // Создаем сущность заказа
             val order = Order()
-            val items :List<OrderItem> = request.items.stream()
+            val items: List<OrderItem> = request.items.stream()
                 .map {
                     OrderItem(
                         it.productId,
@@ -98,10 +97,10 @@ class OrderService(
             )
 
             // Создаем и сохраняем outbox событие
-            val outboxEvent= OutboxEvent(
+            val outboxEvent = OutboxEvent(
                 aggregateType = "Order",
                 aggregateId = savedOrder.id.toString(),
-                eventType = "OrderCreatedEvent",
+                eventType = "orderCreatedEvent",
                 payload = orderCreatedEvent,
                 traceId = traceId,
                 spanId = spanId,
@@ -142,8 +141,8 @@ class OrderService(
         value = "orders.retrieved",
         tags = ["operation=get", "type=read"]
     )
-    @Observed(name="order.get", contextualName = "get-order")
-    fun getOrderWithItems(id: Long) : OrderResponse {
+    @Observed(name = "order.get", contextualName = "get-order")
+    fun getOrderWithItems(id: Long): OrderResponse {
 
 
         log.debug("В метод getOrderWithItems получен запрос поиска order по id: {}", id)
@@ -158,8 +157,8 @@ class OrderService(
     }
 
     fun setFailureMode(enabled: Boolean) {
-            failureMode.set(enabled)
-            log.info("Failure mode в OrderService, переключен на: $enabled")
+        failureMode.set(enabled)
+        log.info("Failure mode в OrderService, переключен на: $enabled")
     }
 
     private fun runFail() {
@@ -169,7 +168,7 @@ class OrderService(
 
             log.debug("Выпало число: $randomInt")
 
-            if (randomInt <30) {
+            if (randomInt < 30) {
                 log.error("Возникли проблемы с обработкой сохранения заказа")
                 throw RuntimeException("Типа проблемы с обработкой заказа")
             }
@@ -189,10 +188,11 @@ class OrderService(
 
         val orderId = command.orderId
 
-        val order: Order = orderRepository.findById(orderId).orElseThrow { NotFoundOrderException("Order not found for id $orderId") }
+        val order: Order =
+            orderRepository.findById(orderId).orElseThrow { NotFoundOrderException("Order not found for id $orderId") }
 
         // Проверяем, что заказ в ожидании оплаты
-        if (order.status!= OrderStatus.AWAITING_PAYMENT) {
+        if (order.status != OrderStatus.AWAITING_PAYMENT) {
             log.warn("Order {} is not in AWAITING_PAYMENT state (current: {}), skipping", orderId, order.status);
             return;
         }

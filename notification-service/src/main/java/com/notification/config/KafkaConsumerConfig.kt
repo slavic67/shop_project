@@ -2,6 +2,7 @@ package com.notification.config
 
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.notification.event.NotificationEvent
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -13,16 +14,10 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.core.ConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.ContainerProperties
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer
 
 
-/**
- * Конфигурация Kafka Consumer для notification-service.
- * <p>
- * ВНИМАНИЕ: Если настройка присутствует и в YAML, и в этом Java-конфиге,
- * то Java-конфигурация имеет более высокий приоритет и переопределяет YAML.
- * Это относится к таким параметрам, как bootstrap-servers, group.id, enable-auto-commit и т.д.
- * Однако, свойства, которые не переопределены здесь, будут взяты из YAML (или значений по умолчанию).
- */
 @Configuration
 @EnableKafka
 class KafkaConsumerConfig(
@@ -33,17 +28,9 @@ class KafkaConsumerConfig(
     private val groupId: String,
 ) {
 
-    /**
-     * Создаёт фабрику потребителей (ConsumerFactory) для работы с сырыми байтами.
-     * <p>
-     * Почему ByteArrayDeserializer? Потому что мы будем десериализовать JSON вручную
-     * через ObjectMapper, что даёт полный контроль над процессом и не привязывает
-     * сервис к общему DTO-модулю.
-     *
-     * @return ConsumerFactory для работы с ключами String и значениями byte[]
-     */
+
     @Bean
-    fun consumerFactory(): ConsumerFactory<String, ByteArray> {
+    fun consumerFactory(): ConsumerFactory<String, Any> {
 
         val props: MutableMap<String, Any> = HashMap()
 
@@ -61,9 +48,18 @@ class KafkaConsumerConfig(
 
         // Десериализатор для ключа (обычно String, например, orderId)
         props[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.java;
+        props[ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS] = ErrorHandlingDeserializer::class.java;
 
-        // Десериализатор для значения — принимаем сырой массив байт
-        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ByteArrayDeserializer::class.java;
+        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ErrorHandlingDeserializer::class.java;
+        props[ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS] = JacksonJsonDeserializer::class.java;
+
+        props[JacksonJsonDeserializer.TYPE_MAPPINGS] = """
+            notificationEvent:${NotificationEvent::class.java.name}
+            """;
+        props[JacksonJsonDeserializer.TRUSTED_PACKAGES] = "com.notification.";
+
+//        // Десериализатор для значения — принимаем сырой массив байт
+//        props[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = ByteArrayDeserializer::class.java;
 
         // При необходимости здесь можно добавить дополнительные свойства:
         // - MAX_POLL_RECORDS_CONFIG (количество записей за один вызов poll)
@@ -81,9 +77,10 @@ class KafkaConsumerConfig(
      * @return фабрика, которую будет использовать @KafkaListener
      */
     @Bean
-    fun kafkaListenerContainerFactory(consumerFactory: ConsumerFactory<String, ByteArray>): ConcurrentKafkaListenerContainerFactory<String, ByteArray> {
+    fun kafkaListenerContainerFactory(consumerFactory: ConsumerFactory<String, Any>):
+            ConcurrentKafkaListenerContainerFactory<String, Any> {
 
-        val factory: ConcurrentKafkaListenerContainerFactory<String, ByteArray> =
+        val factory: ConcurrentKafkaListenerContainerFactory<String, Any> =
             ConcurrentKafkaListenerContainerFactory()
 
         factory.setConsumerFactory(consumerFactory)
